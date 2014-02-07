@@ -15,24 +15,42 @@ class IterativeMeshLearner:
         self.simple = mo.Simplifier()
         self.simple.mesh = self.mesh
 
-    def initMesh(self, measurement):
-        v1 = self.mesh.add(measurement.m1[0],measurement.m1[1])
-        v2 = self.mesh.add(measurement.m2[0],measurement.m2[1])
-        self.mesh.connect(v1,v2)
-        self.data.append(measurement)
+    #def initMesh(self, measurement):
+    #    v1 = self.mesh.add(measurement.m1[0],measurement.m1[1])
+    #    v2 = self.mesh.add(measurement.m2[0],measurement.m2[1])
+    #    self.mesh.connect(v1,v2)
+    #    self.data.append(measurement)
 
+    '''stores measurement as history entry'''
     def addMeasurement(self, m):
         self.data.append(m)
-        scan = sl.ScanlineRasterization()
-        scan.addEdge(m.m1,m.m2)
-        for e in self.mesh.E:
+        #scan = sl.ScanlineRasterization()
+        #scan.addEdge(m.m1,m.m2)
+        #for e in self.mesh.E:
             #print e
-            scan.addEdge(e.v1.getPos(),e.v2.getPos())
+            #scan.addEdge(e.v1.getPos(),e.v2.getPos())
 
         # rasterize bounding box
-        lim = m.getBoundingBox([.1,.1])
-        grid = scan.fill(lim, [.05,.05])
+        #lim = m.getBoundingBox([.1,.1])
+        #grid = scan.fill(lim, [.05,.05])
         # marching cubes mesh reconstruction
+
+    def initSimplifier(self):
+        # minor bug: anchor vertices' quadric Q gets updated more then twice
+        for e in self.mesh.E:
+            if not e.dirty: continue
+            e.updateNormal()
+            self.simple.markForUpdate(e)
+
+    def initSimplifierUsingHistory(self):
+        for e in self.mesh.E:
+            if not e.dirty: continue
+            #if e.v1.isBorder():
+            #if e.v2.isBorder():
+            for d in self.data:
+                p = d.resultedFrom(e)
+                e.v1.addPlaneParam(d.nx,d.ny, p)
+                e.v2.addPlaneParam(d.nx,d.ny, p)
 
     def refineMesh(self, data, cam):
         # first create virtual sensor at current position
@@ -170,9 +188,4 @@ class IterativeMeshLearner:
             e = self.mesh.connect(v1,v2)
             e.dirty = True # mark as new
 
-        # minor bug: anchor vertices' quadric Q gets updated more then twice
-        for e in self.mesh.E:
-            if not e.dirty: continue
-            e.updateNormal()
-            self.simple.markForUpdate(e)
 

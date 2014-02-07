@@ -242,6 +242,7 @@ for s in sensors:
     fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'b.png')
 
 
+    learner.initSimplifier()
     learner.simple.simplify(0.005)
     fig1.clf()
     ax1 = fig1.add_subplot(111)

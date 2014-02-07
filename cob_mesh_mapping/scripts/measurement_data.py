@@ -4,6 +4,7 @@ from numpy import *
 
 from camera_model import *
 import mesh_structure
+import CohenSutherlandClipping as csclip
 
 def convertMeshToMeasurementData(mesh, cam):
     res = []
@@ -32,6 +33,15 @@ class MeasurementData(Camera2d):
         f = math.cos(0.5*fov)*max(lm1,lm2)
         Camera2d.__init__(self, fov, f, 0.4)
         Camera2d.setPose(self, p, o)
+        # todo: save plane param nx,ny
+
+    '''compute propability that this measurement resulted from a given edge'''
+    def resultedFrom(self, edge):
+        w1 = self.tf_to_cam.dot(edge.v1.getPosAffine())
+        w2 = self.tf_to_cam.dot(edge.v2.getPosAffine())
+        if (w2[1] - w1[1]) < -.001: return 0.0
+        # do line intersection for p->m1, p->m2, p->w1, p->w2
+        return 1.0
 
     '''padding: space between bounding box and measurement'''
     def getBoundingBox(self, padding = [0,0] ):
