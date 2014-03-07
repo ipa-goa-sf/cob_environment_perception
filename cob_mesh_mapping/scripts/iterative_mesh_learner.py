@@ -12,8 +12,8 @@ class IterativeMeshLearner:
     def __init__(self):
         self.data = []
         self.mesh = ms.Mesh()
-        self.simple = mo.Simplifier()
-        self.simple.mesh = self.mesh
+        self.simpler = mo.Simplifier()
+        self.simpler.mesh = self.mesh
 
     #def initMesh(self, measurement):
     #    v1 = self.mesh.add(measurement.m1[0],measurement.m1[1])
@@ -22,8 +22,8 @@ class IterativeMeshLearner:
     #    self.data.append(measurement)
 
     '''stores measurement as history entry'''
-    def addMeasurement(self, m):
-        self.data.append(m)
+    def addMeasurements(self, m):
+        self.data.extend(m)
         #scan = sl.ScanlineRasterization()
         #scan.addEdge(m.m1,m.m2)
         #for e in self.mesh.E:
@@ -35,30 +35,13 @@ class IterativeMeshLearner:
         #grid = scan.fill(lim, [.05,.05])
         # marching cubes mesh reconstruction
 
-    def initSimplifier(self):
-        # minor bug: anchor vertices' quadric Q gets updated more then twice
-        for e in self.mesh.E:
-            if not e.dirty: continue
-            e.updateNormal()
-            self.simple.markForUpdate(e)
-
-    def initSimplifierUsingHistory(self):
-        for e in self.mesh.E:
-            if not e.dirty: continue
-            #if e.v1.isBorder():
-            #if e.v2.isBorder():
-            for d in self.data:
-                p = d.resultedFrom(e)
-                e.v1.addPlaneParam(d.nx,d.ny, p)
-                e.v2.addPlaneParam(d.nx,d.ny, p)
-
-    def refineMesh(self, data, cam):
+    def extendMesh(self, data, cam):
         # first create virtual sensor at current position
         # and reconstruct measurements based on current map
         # however: remember anchor vertices of map where
         # the refined mesh is going to be hooked up on
         v_hooks = []
-        self.simple.reset() # reset simplifier
+        self.simpler.reset() # reset simplifier
 
 
         v_hooks = [(100.0, None),(-100.0, None)]
@@ -189,3 +172,20 @@ class IterativeMeshLearner:
             e.dirty = True # mark as new
 
 
+    def simplifyMesh(self,eps):
+        # simplifies the previously extended mesh with respect to all
+        # observed measurement data
+        for e in self.mesh.E:
+            if not e.dirty: continue
+            #if e.v1.isBorder():
+            #if e.v2.isBorder():
+            for d in self.data:
+                p = d.resultedFrom(e)
+                e.v1.addPlaneParam(d.nx,d.ny, p)
+                e.v2.addPlaneParam(d.nx,d.ny, p)
+
+        for e in self.mesh.E:
+            if not e.dirty: continue
+            self.simpler.markForUpdate(e)
+
+        self.simpler.simplify(eps)

@@ -22,8 +22,6 @@ class Vertex:
 
     def addPlaneParam(self, nx, ny, w = 1.0):
         """ """
-        self.nx = nx
-        self.ny = ny
         d = -(nx*self.x + ny*self.y)
         q = array([[nx],[ny],[d]])
         Q = q.dot(q.T)
@@ -56,15 +54,33 @@ class Edge:
         self.vnew = v1
         self.dirty = False
 
-    def updateNormal(self):
-        nx,ny = computeNormal(self.v1.x, self.v1.y, self.v2.x, self.v2.y)
+    def getNormal(self):
+        return computeNormal(self.v1.x, self.v1.y, self.v2.x, self.v2.y)
+
+    def updateQuadrics(self):
+        nx,ny = self.getNormal()
         self.v1.addPlaneParam(nx,ny)
         self.v2.addPlaneParam(nx,ny)
         # add perpendicular penalty planes:
         if self.v1.isBorder():
-            self.v1.addPlaneParam(-ny,nx,100.)
+            self.v1.addPlaneParam(-ny,nx,1000.)
         if self.v2.isBorder():
-            self.v2.addPlaneParam(-ny,nx,100.)
+            self.v2.addPlaneParam(-ny,nx,1000.)
+
+    '''
+    weights plane parameters based on triangle face area
+    since it's 2D, area is actually the edge length
+    '''
+    def updateQuadricsAreaWeighted(self):
+        nx,ny = self.getNormal()
+        w = sqrt( (self.v1.x-self.v2.x)**2 + (self.v1.y-self.v2.y)**2 )
+        self.v1.addPlaneParam(nx,ny,w)
+        self.v2.addPlaneParam(nx,ny,w)
+        # add perpendicular penalty planes:
+        if self.v1.isBorder():
+            self.v1.addPlaneParam(-ny,nx,1000.)
+        if self.v2.isBorder():
+            self.v2.addPlaneParam(-ny,nx,1000.)
 
     def __repr__(self):
         return `self.v1.__repr__()` + "  <--->  "  + `self.v2.__repr__()`

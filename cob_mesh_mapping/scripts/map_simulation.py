@@ -13,7 +13,7 @@ from tf_utils import *
 import normal_estimation
 import mesh_structure as ms
 import mesh_optimization as mo
-import measurement_data as mdata
+import measurement_data as md
 import scanline_rasterization as sl
 import iterative_mesh_learner as iml
 
@@ -118,6 +118,12 @@ class Sensor(cm.Camera2d):
 
 ### END CLASS -- Sensor ###
 
+def setupAxis(ax1):
+    ax1.axis('equal')
+    ax1.set_xlim(-.5, 6.5)
+    ax1.set_ylim(-.5, 4.5)
+    ax1.grid()
+
 
 
 ###----------------------------------------------------------------------------
@@ -151,13 +157,14 @@ s2 = [Sensor([1.5,1.3],[cos(angles[i]),sin(angles[i])])
       for i in range(len(angles))]
 
 sensors = hstack([s1,s2])
-for s in sensors: s.measure(world)
+#for s in sensors: s.measure(world)
 
 ###----------------------------------------------------------------------------
 #     process measurements and add to map
 ###----------------------------------------------------------------------------
 
 learner = iml.IterativeMeshLearner()
+preproc = mo.Simplifier()
 data = []
 colors = 'ym'
 iii = 0
@@ -209,24 +216,25 @@ fig1 = plt.figure(figsize=(1024.0/80, 768.0/80), dpi=80)
 
 fi = 0
 for s in sensors:
+    # 1st: measure world
+    s.measure(world)
     fig1.clf()
     ax1 = fig1.add_subplot(111)
     plt.title('Measurement')
-
     world.draw(ax1)
     s.drawFrustum(ax1)
     s.drawPose(ax1)
     learner.mesh.draw(ax1, 've')
     s.showMeasurementInMap(ax1)
-
-    ax1.axis('equal')
-    ax1.set_xlim(-.5, 6.5)
-    ax1.set_ylim(-.5, 4.5)
-    ax1.grid()
+    setupAxis(ax1)
     fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'a.png')
 
+    # 2nd: Preprocess new measurement (meshing + qslim)
+    preproc.compress(s.measurment)
 
-    learner.refineMesh(s.measurement, s)
+
+    # 3rd: Refine exsisting map
+    learner.extendMesh(s.measurement, s)
     fig1.clf()
     ax1 = fig1.add_subplot(111)
     plt.title('Mesh Refinement')
@@ -234,16 +242,12 @@ for s in sensors:
     s.drawFrustum(ax1)
     s.drawPose(ax1)
     learner.mesh.draw(ax1, 've')
-
-    ax1.axis('equal')
-    ax1.set_xlim(-.5, 6.5)
-    ax1.set_ylim(-.5, 4.5)
-    ax1.grid()
+    setupAxis(ax1)
     fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'b.png')
 
-
-    learner.initSimplifier()
-    learner.simple.simplify(0.005)
+    # 4th: simplify refined parts of map using all measurements (wqslim)
+    learner.addMeasurements(md.convertMeshToMeasurementData(preproc.mesh, s))
+    learner.simplifyMesh(0.005)
     fig1.clf()
     ax1 = fig1.add_subplot(111)
     plt.title('Mesh Simplification')
@@ -251,12 +255,7 @@ for s in sensors:
     s.drawFrustum(ax1)
     s.drawPose(ax1)
     learner.mesh.draw(ax1, 've')
-
-
-    ax1.axis('equal')
-    ax1.set_xlim(-.5, 6.5)
-    ax1.set_ylim(-.5, 4.5)
-    ax1.grid()
+    setupAxis(ax1)
     fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'c.png')
 
     fi = fi+1
