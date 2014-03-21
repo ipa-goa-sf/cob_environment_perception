@@ -55,7 +55,8 @@ class Edge:
         self.dirty = False
 
     def getNormal(self):
-        return computeNormal(self.v1.x, self.v1.y, self.v2.x, self.v2.y)
+        nx,ny = computeNormal(self.v1.x, self.v1.y, self.v2.x, self.v2.y)
+        return array([nx,ny])
 
     def updateQuadrics(self):
         nx,ny = self.getNormal()
@@ -206,12 +207,14 @@ class Mesh:
             v1 = v2
 
 
-    def draw(self, axis, options = 'ven', color = 'krb'):
+    def draw(self, axis, options = 'ven', color = 'krb', tf = diag([1.,1.,1.])):
         """ options: n=normals, e=edges, v=vertices """
         if 'v' in options:
-            x = [ v.x for v in self.V ]
-            y = [ v.y for v in self.V ]
-            axis.plot(x,y,'x'+color[0])
+            #x = [ tf.dot(vi) for vi in self.V ]
+            v = vstack()
+            #x = [ v.x for v in self.V ]
+            #y = [ v.y for v in self.V ]
+            axis.plot(v[:,0],v[:,1],'x'+color[0])
 
         if 'n' in options:
             for v in self.V:

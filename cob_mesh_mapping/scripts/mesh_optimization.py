@@ -17,6 +17,9 @@ class Heap:
     def pop(self):
         return heapq.heappop(self.h)
 
+    def size(self):
+        return len(self.h)
+
 class Simplifier:
     def __init__(self, mesh = None):
         """vertices of mesh require normal information beforhand"""
@@ -78,7 +81,7 @@ class Simplifier:
 
     def simplify(self, eps = 0.1, min_vertices = 3):
         h = self.heap.pop()
-        while(h.cost < eps and len(self.mesh.V) > min_vertices):
+        while(h.cost < eps and len(self.mesh.V) > min_vertices and self.heap.size()>0):
             if h.op is 'EC':
                 #print h.cost, h.data.v1.w, h.data.v2.w
                 self.mesh.collapse(h.data)

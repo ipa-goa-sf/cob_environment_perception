@@ -14,6 +14,7 @@ import normal_estimation
 import mesh_structure as ms
 import mesh_optimization as mo
 import measurement_data as md
+import measurement_preprocessor as mp
 import scanline_rasterization as sl
 import iterative_mesh_learner as iml
 
@@ -164,7 +165,7 @@ sensors = hstack([s1,s2])
 ###----------------------------------------------------------------------------
 
 learner = iml.IterativeMeshLearner()
-preproc = mo.Simplifier()
+preproc = mp.Preprocessor()
 data = []
 colors = 'ym'
 iii = 0
@@ -216,6 +217,7 @@ fig1 = plt.figure(figsize=(1024.0/80, 768.0/80), dpi=80)
 
 fi = 0
 for s in sensors:
+    print "Sensor " + str(fi+1)
     # 1st: measure world
     s.measure(world)
     fig1.clf()
@@ -224,13 +226,24 @@ for s in sensors:
     world.draw(ax1)
     s.drawFrustum(ax1)
     s.drawPose(ax1)
-    learner.mesh.draw(ax1, 've')
+    learner.mesh.draw(ax1, 've', 'bbb')
     s.showMeasurementInMap(ax1)
     setupAxis(ax1)
     fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'a.png')
 
     # 2nd: Preprocess new measurement (meshing + qslim)
-    preproc.compress(s.measurment)
+    preproc.compress(s.measurement)
+    fig1.clf()
+    ax1 = fig1.add_subplot(111)
+    plt.title('Measurement Compressed')
+    world.draw(ax1)
+    s.drawFrustum(ax1)
+    s.drawPose(ax1)
+    learner.mesh.draw(ax1, 've', 'bbb')
+    preproc.mesh.draw(ax1, 've', 'rrr')
+    setupAxis(ax1)
+    fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'b.png')
+
 
 
     # 3rd: Refine exsisting map
@@ -241,9 +254,9 @@ for s in sensors:
     world.draw(ax1)
     s.drawFrustum(ax1)
     s.drawPose(ax1)
-    learner.mesh.draw(ax1, 've')
+    learner.mesh.draw(ax1, 've', 'bbb')
     setupAxis(ax1)
-    fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'b.png')
+    fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'c.png')
 
     # 4th: simplify refined parts of map using all measurements (wqslim)
     learner.addMeasurements(md.convertMeshToMeasurementData(preproc.mesh, s))
@@ -254,9 +267,9 @@ for s in sensors:
     world.draw(ax1)
     s.drawFrustum(ax1)
     s.drawPose(ax1)
-    learner.mesh.draw(ax1, 've')
+    learner.mesh.draw(ax1, 've', 'bbb')
     setupAxis(ax1)
-    fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'c.png')
+    fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'d.png')
 
     fi = fi+1
 #for d in data:
