@@ -175,14 +175,17 @@ class IterativeMeshLearner:
     def simplifyMesh(self,eps):
         # simplifies the previously extended mesh with respect to all
         # observed measurement data
+        sigma = 0.5
+        weight_param = 1./(2.*sigma)
         for e in self.mesh.E:
             if not e.dirty: continue
             #if e.v1.isBorder():
             #if e.v2.isBorder():
             for d in self.data:
-                p = d.resultedFrom(e)
-                e.v1.addPlaneParam(d.nx,d.ny, p)
-                e.v2.addPlaneParam(d.nx,d.ny, p)
+                p = d.resultedFrom(e,weight_param)
+                if p != 0:
+                    e.v1.addPlaneParam(d.nx,d.ny, p)
+                    e.v2.addPlaneParam(d.nx,d.ny, p)
 
         for e in self.mesh.E:
             if not e.dirty: continue

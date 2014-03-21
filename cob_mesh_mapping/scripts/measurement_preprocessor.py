@@ -24,14 +24,14 @@ class Preprocessor:
         for i in range(ii):
             if not math.isnan(m[i][0]): break
 
-        v1 = self.mesh.add(m[i][0],m[i][0])
+        v1 = self.mesh.add(m[i][0],m[i][1])
         broke = False
         for j in range(i+1,ii):
             if math.isnan(m[j][0]):
                 broke = True
                 continue
 
-            v2 = self.mesh.add(m[j][0],m[j][0])
+            v2 = self.mesh.add(m[j][0],m[j][1])
             # perform rough distance check:
             if not broke and fabs(m[j][0] - m[j-1][0]) < .07*(m[j][0])**2+.1:
                 e = self.mesh.connect(v1,v2)
