@@ -142,22 +142,22 @@ world = World(vstack(
      [3.4,1.6],[4.6,1.6],[4.6,1.5],[3.6,1.5],[3.6,0],[100.0,0]]))
 
 # create sensors and measure world:
-s1 = [Sensor([4.0, 5.0],[-1.,-.5]),
-      Sensor([5.0, 4.5],[-1.,-.5]),
-      Sensor([6.0, 4.0],[-1.,-.5]),
-      Sensor([6.0, 3.0],[-1.,-.5]),
-      Sensor([5.0, 3.5],[-1.,-.5]),
-      Sensor([4.0, 3.0],[-1.,-.5]),
-      Sensor([3.0, 2.5],[-1.,-.5]),
-      Sensor([2.0, 2.0],[-1.,-.5])]
+s1 = array([Sensor([4.0, 5.0],[-1.,-.5]),
+            Sensor([5.0, 4.5],[-1.,-.5]),
+            Sensor([6.0, 4.0],[-1.,-.5]),
+            Sensor([6.0, 3.0],[-1.,-.5]),
+            Sensor([5.0, 3.5],[-1.,-.5]),
+            Sensor([4.0, 3.0],[-1.,-.5]),
+            Sensor([3.0, 2.5],[-1.,-.5]),
+            Sensor([2.0, 2.0],[-1.,-.5])])
 
 circle_size = 12.0
 angles = array(range(int(circle_size)))/circle_size*(3.0/2.0*pi)-3.*pi/4.
 circle = array([[cos(angles[i]),sin(angles[i])] for i in range(len(angles))])
-s2 = [Sensor([1.5,1.3],[cos(angles[i]),sin(angles[i])])
-      for i in range(len(angles))]
+s2 = array([Sensor([1.5,1.3],[cos(angles[i]),sin(angles[i])])
+            for i in range(len(angles))])
 
-sensors = hstack([s1,s2])
+sensors = s1[-4:-1]#hstack([s1,s2])
 #for s in sensors: s.measure(world)
 
 ###----------------------------------------------------------------------------
@@ -230,9 +230,12 @@ for s in sensors:
     s.showMeasurementInMap(ax1)
     setupAxis(ax1)
     fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'a.png')
+    print "saved measurement image..."
 
     # 2nd: Preprocess new measurement (meshing + qslim)
     preproc.compress(s.measurement)
+    learner.addMeasurements(md.convertMeshToMeasurementData(preproc.mesh, s))
+
     fig1.clf()
     ax1 = fig1.add_subplot(111)
     plt.title('Measurement Compressed')
@@ -240,11 +243,11 @@ for s in sensors:
     s.drawFrustum(ax1)
     s.drawPose(ax1)
     learner.mesh.draw(ax1, 've', 'bbb')
-    preproc.mesh.draw(ax1, 've', 'rrr')
+    for d in learner.data: d.draw(ax1)
+
     setupAxis(ax1)
     fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'b.png')
-
-
+    print "saved compression image..."
 
     # 3rd: Refine exsisting map
     learner.extendMesh(s.measurement, s)
@@ -257,9 +260,10 @@ for s in sensors:
     learner.mesh.draw(ax1, 've', 'bbb')
     setupAxis(ax1)
     fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'c.png')
+    print "saved refinement image..."
 
     # 4th: simplify refined parts of map using all measurements (wqslim)
-    learner.addMeasurements(md.convertMeshToMeasurementData(preproc.mesh, s))
+
     learner.simplifyMesh(0.005)
     fig1.clf()
     ax1 = fig1.add_subplot(111)
@@ -270,6 +274,7 @@ for s in sensors:
     learner.mesh.draw(ax1, 've', 'bbb')
     setupAxis(ax1)
     fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'d.png')
+    print "saved simplification image..."
 
     fi = fi+1
 #for d in data:

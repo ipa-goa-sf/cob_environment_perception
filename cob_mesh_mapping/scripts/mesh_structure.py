@@ -207,14 +207,12 @@ class Mesh:
             v1 = v2
 
 
-    def draw(self, axis, options = 'ven', color = 'krb', tf = diag([1.,1.,1.])):
+    def draw(self, axis, options = 'ven', color = 'krb'):
         """ options: n=normals, e=edges, v=vertices """
         if 'v' in options:
-            #x = [ tf.dot(vi) for vi in self.V ]
-            v = vstack()
-            #x = [ v.x for v in self.V ]
-            #y = [ v.y for v in self.V ]
-            axis.plot(v[:,0],v[:,1],'x'+color[0])
+            x = [ v.x for v in self.V ]
+            y = [ v.y for v in self.V ]
+            axis.plot(x,y,'x'+color[0])
 
         if 'n' in options:
             for v in self.V:

@@ -17,7 +17,7 @@ class Preprocessor:
 
         self.simpler = mo.Simplifier()
         self.simpler.mesh = self.mesh
-        self.simplifyMesh(0.005)
+        self.simplifyMesh(0.1)
 
     def extendMesh(self, m):
         ii = len(m[:,0])
@@ -42,7 +42,8 @@ class Preprocessor:
 
     def simplifyMesh(self, eps):
         for e in self.simpler.mesh.E:
-            e.updateQuadricsAreaWeighted()
+            #e.updateQuadricsAreaWeighted()
+            e.updateQuadrics()
         for e in self.simpler.mesh.E:
             self.simpler.markForUpdate(e)
 

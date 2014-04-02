@@ -41,7 +41,6 @@ class MeasurementData(Camera2d):
         Camera2d.__init__(self, fov, f, 0.4)
         Camera2d.setPose(self, p, o)
         self.nx,self.ny = ms.computeNormal(m1[0], m1[1], m2[0], m2[1])
-        print self.m1, self.m2, self.nx, self.ny
         # todo: save plane param nx,ny
 
     '''
@@ -107,8 +106,8 @@ class MeasurementData(Camera2d):
                 ymin - padding[1],
                 ymax + padding[1]]
 
-    def draw(self, axis):
-        axis.plot([self.m1[0], self.m2[0]], [self.m1[1], self.m2[1]], 'bx-')
+    def draw(self, axis, style = 'rx-'):
+        axis.plot([self.m1[0], self.m2[0]], [self.m1[1], self.m2[1]], style)
 
     def drawBoundingBox(self, axis, padding = [0,0]):
         bb = self.getBoundingBox(padding)
