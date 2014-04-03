@@ -10,9 +10,9 @@ class Heap:
     def __init__(self):
         self.h = []
 
-    def push(self, cost, data, op):
-        Item = namedtuple('Item', 'cost, data, op')
-        heapq.heappush(self.h,Item(cost,data,op))
+    def push(self, cost, data):
+        Item = namedtuple('Item', 'cost, data')
+        heapq.heappush(self.h,Item(cost,data))
 
     def pop(self):
         return heapq.heappop(self.h)
@@ -30,8 +30,8 @@ class Simplifier:
     def init(self, mesh):
         self.mesh = mesh
         for e in mesh.E:
-            c = self.compute_cost(e, 'EC')
-            self.heap.push(c,e,'EC')
+            c = self.computeCost(e)
+            self.heap.push(c,e)
 
     def reset(self):
         for h in self.heap.h:
@@ -40,69 +40,54 @@ class Simplifier:
         self.heap.__init__()
 
     def markForUpdate(self, edge):
-        c = self.compute_cost(edge, 'EC')
-        self.heap.push(c,edge,'EC')
+        c = self.computeCost(edge)
+        self.heap.push(c,edge)
 
-    def compute_cost(self, data, operation):
-        """
-        data: edge or vertex object
-        operation: [EC,ES,VM]
-        """
-        if operation is 'EC':
-            # compute weak constrains to place v between v1 and v2
-            # this will not be saved for future operations
-            ny,nx = data.getNormal()
-            ny = - ny
-            d = -(nx*data.v1.x + ny*data.v1.y)
-            p1 = array([[nx],[ny],[d]])
-            d = -(nx*data.v2.x + ny*data.v2.y)
-            p2 = array([[nx],[ny],[d]])
+    def computeCost(self, edge):
+        # compute weak constrains to place v between v1 and v2
+        # this will not be saved for future operations
+        ny,nx = edge.getNormal()
+        ny = - ny
+        d = -(nx*edge.v1.x + ny*edge.v1.y)
+        p1 = array([[nx],[ny],[d]])
+        d = -(nx*edge.v2.x + ny*edge.v2.y)
+        p2 = array([[nx],[ny],[d]])
 
-            w = data.v1.w + data.v2.w
-            Q = data.v1.Q + data.v2.Q
-            Qw = (Q + p1.dot(p1.T) + p2.dot(p2.T)) / (w+2.)
-            q = array(vstack([ Qw[0:2,:], [0,0,1.] ]))
-            #A = Q[:2,:2]
-            #B = Q[2,:2]
-            #C = Q[2,2]
-            det = fabs(linalg.det(q))
-            if det > 0.0001:
-                v = linalg.inv(q).dot(array([[0],[0],[1.]]))
-                #v = linalg.inv(A).dot(B)
-            else:
-                v = array([[0.5 * (data.v1.x + data.v2.x)],
-                           [0.5 * (data.v1.y + data.v2.y)],[1]])
+        w = edge.v1.w + edge.v2.w
+        Q = edge.v1.Q + edge.v2.Q
+        Qw = (Q + p1.dot(p1.T) + p2.dot(p2.T)) / (w+2.)
+        q = array(vstack([ Qw[0:2,:], [0,0,1.] ]))
+        #A = Q[:2,:2]
+        #B = Q[2,:2]
+        #C = Q[2,2]
+        det = fabs(linalg.det(q))
+        if det > 0.0001:
+            v = linalg.inv(q).dot(array([[0],[0],[1.]]))
+            #v = linalg.inv(A).dot(B)
+        else:
+            v = array([[0.5 * (edge.v1.x + edge.v2.x)],
+                       [0.5 * (edge.v1.y + edge.v2.y)],[1]])
 
-            data.vnew = ms.Vertex(float(v[0]),float(v[1]),Q,w)
-            #cost = float(v.T.dot(A).dot(v) + 2.*v.T.dot(B) + C)
-            cost = fabs(float(v.T.dot(Qw).dot(v)))
-            #cost = fabs(float(v.T.dot(Q).dot(v)))
-            #print det, cost
+        edge.vnew = ms.Vertex(float(v[0]),float(v[1]),Q,w)
+        edge.vnew.flag = False
+        #cost = float(v.T.dot(A).dot(v) + 2.*v.T.dot(B) + C)
+        cost = fabs(float(v.T.dot(Qw).dot(v)))
+        #cost = fabs(float(v.T.dot(Q).dot(v)))
+        #print det, cost
 
-        elif operation is 'ES':
-            pass
-
-        elif operation is 'VM':
-            pass
-
-        data.dirty = False
+        edge.dirty = False
         return cost
 
     def simplify(self, eps = 0.1, min_vertices = 3):
         h = self.heap.pop()
-        while(h.cost < eps and len(self.mesh.V) > min_vertices and self.heap.size()>0):
-            if h.op is 'EC':
-                #print h.cost, h.data.v1.w, h.data.v2.w
-                self.mesh.collapse(h.data)
-            elif h.op is 'ES':
-                self.mesh.split(h.data)
-            elif h.op is 'VM':
-                self.mesh.move(h.data)
-
+        while(h.cost < eps
+              and len(self.mesh.V) > min_vertices
+              and self.heap.size()>0):
+            self.mesh.collapse(h.data)
             h = self.heap.pop()
             while(h.data.dirty):
-                c = self.compute_cost(h.data, h.op)
-                self.heap.push(c,h.data,h.op)
+                c = self.computeCost(h.data)
+                self.heap.push(c,h.data)
                 h = self.heap.pop()
 
 

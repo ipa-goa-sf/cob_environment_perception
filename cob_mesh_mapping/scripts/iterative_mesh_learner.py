@@ -172,24 +172,41 @@ class IterativeMeshLearner:
             e.dirty = True # mark as new
 
 
+    ''' move all vertices where v^T*Q*v is minimal. Return change of error '''
+    def compensate(self):
+        for v in self.mesh.V:
+            if not v.flag: continue
+
+            Q = zeros([3,3])
+
+            for d in self.data:
+                p = d.computeIntersection(v.getPos())
+                q = array([[d.nx],[d.ny],[d.d]])
+                Q = Q + p * q.dot(q.T)
+
+
+            det = fabs(linalg.det(Q))
+            e_new = e_old = 0
+            if det > 0.0001:
+                dQ = array(vstack([Q[0:2,:], [0,0,1.]]))
+                w_new = linalg.inv(dQ).dot(array([[0],[0],[1.]]))
+                w_old = array([[v.x],[v.y],[1.]])
+                e_new = w_new.T.dot(Q).dot(w_new)
+                e_old = w_old.T.dot(Q).dot(w_old)
+                v.x = float(w_new[0])
+                v.y = float(w_new[1])
+                print v
+            #else:
+                #disp(Q)
+                #print "warning: determinate of Q =", det
+
+            v.flag = False
+        #return e_old - e_new
+
     def simplifyMesh(self,eps):
-        # simplifies the previously extended mesh with respect to all
-        # observed measurement data
-        sigma = 0.5
-        weight_param = 1./(2.*sigma)
         for e in self.mesh.E:
             if not e.dirty: continue
-            if e.v1.isBorder():
-                nx,ny = e.getNormal()
-                e.v1.addOrientation(-ny,nx,1000.)
-            if e.v2.isBorder():
-                nx,ny = e.getNormal()
-                e.v1.addOrientation(-ny,nx,1000.)
-            for d in self.data:
-                p = d.resultedFrom(e,weight_param)
-                if p != 0:
-                    e.v1.addPlane(d.nx,d.ny,d.d,p)
-                    e.v2.addPlane(d.nx,d.ny,d.d,p)
+            e.updateQuadrics()
 
         for e in self.mesh.E:
             if not e.dirty: continue

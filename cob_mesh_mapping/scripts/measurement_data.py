@@ -44,6 +44,24 @@ class MeasurementData(Camera2d):
         self.d = -(self.nx*m1[0] + self.ny*m1[1])
         # todo: save plane param nx,ny
 
+    def computeIntersection(self, p1):
+        #http://geomalgorithms.com/a06-_intersect-2.html
+        p0 = array([self.pos[0],self.pos[1]])
+        u = self.m2 - self.m1
+        v = p0 - self.m1
+        w = p1 - self.m1
+        uv = u.dot(v)
+        wv = w.dot(v)
+        vv = v.dot(v)
+        uu = u.dot(u)
+        wu = w.dot(u)
+        s = (uv*wv - vv*wu) / (uv*uv - uu*vv)
+        if s<0 or s>1.:
+            return 0
+        else:
+            return 1.
+
+
     '''
     compute intersections of line cam->l1 and cam->l2 with plane
     (n: normal, p: point on plane)

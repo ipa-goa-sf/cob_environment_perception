@@ -7,6 +7,7 @@ import normal_estimation
 def computeNormal(x1,y1,x2,y2):
     dx = x2 - x1
     dy = y2 - y1
+    if dx == 0 and dy == 0: return (0,0)
     l = 1./math.sqrt(dx**2+dy**2)
     return (-dy*l, dx*l)
 
@@ -19,6 +20,7 @@ class Vertex:
         self.w = w
         self.e1 = None
         self.e2 = None
+        self.flag = True
 
     def addPlane(self, nx, ny, d, w = 1.0):
         q = array([[nx],[ny],[d]])

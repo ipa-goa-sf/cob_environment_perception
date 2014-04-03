@@ -250,8 +250,9 @@ for s in sensors:
     fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'b.png')
     print "saved compression image..."
 
-    # 3rd: Refine exsisting map
+    # 3rd: Refine and compensate exsisting map
     learner.extendMesh(s.measurement, s)
+    learner.compensate()
     fig1.clf()
     ax1 = fig1.add_subplot(111)
     plt.title('Mesh Refinement')
