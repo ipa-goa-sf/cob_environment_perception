@@ -49,9 +49,18 @@ class Simplifier:
         operation: [EC,ES,VM]
         """
         if operation is 'EC':
+            # compute weak constrains to place v between v1 and v2
+            # this will not be saved for future operations
+            ny,nx = data.getNormal()
+            ny = - ny
+            d = -(nx*data.v1.x + ny*data.v1.y)
+            p1 = array([[nx],[ny],[d]])
+            d = -(nx*data.v2.x + ny*data.v2.y)
+            p2 = array([[nx],[ny],[d]])
+
             w = data.v1.w + data.v2.w
             Q = data.v1.Q + data.v2.Q
-            Qw = Q / w
+            Qw = (Q + p1.dot(p1.T) + p2.dot(p2.T)) / (w+2.)
             q = array(vstack([ Qw[0:2,:], [0,0,1.] ]))
             #A = Q[:2,:2]
             #B = Q[2,:2]

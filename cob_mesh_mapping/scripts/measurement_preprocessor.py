@@ -11,13 +11,13 @@ class Preprocessor:
         self.simpler.mesh = self.mesh
 
     '''converts sensor measurements to a compressed surface repressentation'''
-    def compress(self, m):
+    def compress(self, m, eps = 0.1):
         self.mesh = ms.Mesh()
         self.extendMesh(m)
 
         self.simpler = mo.Simplifier()
         self.simpler.mesh = self.mesh
-        self.simplifyMesh(0.1)
+        self.simplifyMesh(eps)
 
     def extendMesh(self, m):
         ii = len(m[:,0])

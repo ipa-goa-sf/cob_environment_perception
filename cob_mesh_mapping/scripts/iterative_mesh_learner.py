@@ -179,13 +179,17 @@ class IterativeMeshLearner:
         weight_param = 1./(2.*sigma)
         for e in self.mesh.E:
             if not e.dirty: continue
-            #if e.v1.isBorder():
-            #if e.v2.isBorder():
+            if e.v1.isBorder():
+                nx,ny = e.getNormal()
+                e.v1.addOrientation(-ny,nx,1000.)
+            if e.v2.isBorder():
+                nx,ny = e.getNormal()
+                e.v1.addOrientation(-ny,nx,1000.)
             for d in self.data:
                 p = d.resultedFrom(e,weight_param)
                 if p != 0:
-                    e.v1.addPlaneParam(d.nx,d.ny, p)
-                    e.v2.addPlaneParam(d.nx,d.ny, p)
+                    e.v1.addPlane(d.nx,d.ny,d.d,p)
+                    e.v2.addPlane(d.nx,d.ny,d.d,p)
 
         for e in self.mesh.E:
             if not e.dirty: continue

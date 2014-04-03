@@ -41,6 +41,7 @@ class MeasurementData(Camera2d):
         Camera2d.__init__(self, fov, f, 0.4)
         Camera2d.setPose(self, p, o)
         self.nx,self.ny = ms.computeNormal(m1[0], m1[1], m2[0], m2[1])
+        self.d = -(self.nx*m1[0] + self.ny*m1[1])
         # todo: save plane param nx,ny
 
     '''
@@ -93,7 +94,7 @@ class MeasurementData(Camera2d):
         if res == -1.:
             return 0
         else:
-            return exp(-(res+1.)*weight_param)
+            return 1.#exp(-(res+1.)*weight_param)
 
     '''padding: space between bounding box and measurement'''
     def getBoundingBox(self, padding = [0,0] ):

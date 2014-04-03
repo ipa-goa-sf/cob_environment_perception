@@ -157,7 +157,8 @@ circle = array([[cos(angles[i]),sin(angles[i])] for i in range(len(angles))])
 s2 = array([Sensor([1.5,1.3],[cos(angles[i]),sin(angles[i])])
             for i in range(len(angles))])
 
-sensors = s1[-4:-1]#hstack([s1,s2])
+#sensors = s1[-2:]
+sensors = hstack([s1,s2])
 #for s in sensors: s.measure(world)
 
 ###----------------------------------------------------------------------------
@@ -233,7 +234,7 @@ for s in sensors:
     print "saved measurement image..."
 
     # 2nd: Preprocess new measurement (meshing + qslim)
-    preproc.compress(s.measurement)
+    preproc.compress(s.measurement, 0.01)
     learner.addMeasurements(md.convertMeshToMeasurementData(preproc.mesh, s))
 
     fig1.clf()
@@ -264,7 +265,7 @@ for s in sensors:
 
     # 4th: simplify refined parts of map using all measurements (wqslim)
 
-    learner.simplifyMesh(0.005)
+    learner.simplifyMesh(0.01)
     fig1.clf()
     ax1 = fig1.add_subplot(111)
     plt.title('Mesh Simplification')
