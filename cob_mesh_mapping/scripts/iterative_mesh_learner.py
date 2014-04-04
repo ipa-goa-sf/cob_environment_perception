@@ -178,16 +178,41 @@ class IterativeMeshLearner:
             if not v.flag: continue
 
             Q = zeros([3,3])
+            # add plane parallel to surface normal through v:
+            n = zeros([2])
+            if v.e1 is not None:
+                l1 = v.e1.length()
+                n1 = v.e1.getNormal()
+                if v.e2 is not None:
+                    l2 = v.e2.length()
+                    n2 = v.e2.getNormal()
+                    n = l1*n1 + l2*n2 / (l1+l2)
+                else:
+                    n = n1
+            else:
+                if v.e2 is not None:
+                    n = v.e2.getNormal()
 
+            nx = -n[1]
+            ny = n[0]
+            d = -(nx*v.x + ny*v.y)
+
+            q = array([[nx], [ny], [d]])
+            Q = Q + 1. * q.dot(q.T)
+            #disp(Q)
+
+            # add measurement planes:
             for d in self.data:
                 p = d.computeIntersection(v.getPos())
                 q = array([[d.nx],[d.ny],[d.d]])
-                Q = Q + p * q.dot(q.T)
+                Q = Q + 2.*p * q.dot(q.T)
 
 
             det = fabs(linalg.det(Q))
-            e_new = e_old = 0
-            if det > 0.0001:
+            e_new = 0
+            e_old = 0
+            if det > 0.000001:
+                #disp(Q)
                 dQ = array(vstack([Q[0:2,:], [0,0,1.]]))
                 w_new = linalg.inv(dQ).dot(array([[0],[0],[1.]]))
                 w_old = array([[v.x],[v.y],[1.]])

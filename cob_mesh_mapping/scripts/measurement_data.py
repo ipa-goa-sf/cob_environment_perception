@@ -59,7 +59,15 @@ class MeasurementData(Camera2d):
         if s<0 or s>1.:
             return 0
         else:
-            return 1.
+            dd = s*u + self.m1
+            ddd = p1 - dd
+            d = linalg.norm(ddd)
+            #print s, d, dd, p1, ddd
+            return exp(-2.*d**2)
+            #if d> 0.1:
+            #    return 0
+            #else:
+            #    return 1.
 
 
     '''

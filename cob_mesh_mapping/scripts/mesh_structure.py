@@ -73,6 +73,12 @@ class Edge:
         nx,ny = computeNormal(self.v1.x, self.v1.y, self.v2.x, self.v2.y)
         return array([nx,ny])
 
+    def lengthSquared(self):
+        return (self.v1.x-self.v2.x)**2 + (self.v1.y-self.v2.y)**2
+
+    def length(self):
+        return sqrt(self.lengthSquared())
+
     def updateQuadrics(self):
         nx,ny = self.getNormal()
         self.v1.addOrientation(nx,ny)
