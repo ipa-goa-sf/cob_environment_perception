@@ -35,6 +35,21 @@ class IterativeMeshLearner:
         #grid = scan.fill(lim, [.05,.05])
         # marching cubes mesh reconstruction
 
+    def getValidMeasurements(self, cam):
+        c = csclip.Clipper()
+        tf = cam.tf_to_unit_cube.dot(cam.tf_to_cam)
+        res = []
+        for d in self.data:
+            w0 = tf.dot(array([d.m1[0], d.m1[1], 1.]))
+            w1 = tf.dot(array([d.m2[0], d.m2[1], 1.]))
+            ok, p0, p1 = c.clip(w0,w1)
+            if not ok: continue
+            if (w1[1]/w1[-1] - w0[1]/w0[-1]) < 0: continue #-.001: continue
+
+            res.append(d)
+        return res
+
+
     def extendMesh(self, data, cam):
         # first create virtual sensor at current position
         # and reconstruct measurements based on current map
@@ -173,7 +188,9 @@ class IterativeMeshLearner:
 
 
     ''' move all vertices where v^T*Q*v is minimal. Return change of error '''
-    def compensate(self):
+    def compensate(self, cam):
+        data = self.getValidMeasurements(cam)
+        print len(data), len(self.data)
         for v in self.mesh.V:
             if not v.flag: continue
 
@@ -202,8 +219,9 @@ class IterativeMeshLearner:
             #disp(Q)
 
             # add measurement planes:
-            for d in self.data:
+            for d in data:
                 p = d.computeIntersection(v.getPos())
+                #print p
                 q = array([[d.nx],[d.ny],[d.d]])
                 Q = Q + 2.*p * q.dot(q.T)
 

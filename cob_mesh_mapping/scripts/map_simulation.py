@@ -234,7 +234,7 @@ for s in sensors:
     print "saved measurement image..."
 
     # 2nd: Preprocess new measurement (meshing + qslim)
-    preproc.compress(s.measurement, 0.01)
+    preproc.compress(s.measurement, 0.001)
     learner.addMeasurements(md.convertMeshToMeasurementData(preproc.mesh, s))
 
     fig1.clf()
@@ -252,7 +252,7 @@ for s in sensors:
 
     # 3rd: Refine and compensate exsisting map
     learner.extendMesh(s.measurement, s)
-    learner.compensate()
+    learner.compensate(s)
     fig1.clf()
     ax1 = fig1.add_subplot(111)
     plt.title('Mesh Refinement')

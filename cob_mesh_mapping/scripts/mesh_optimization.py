@@ -46,16 +46,17 @@ class Simplifier:
     def computeCost(self, edge):
         # compute weak constrains to place v between v1 and v2
         # this will not be saved for future operations
-        ny,nx = edge.getNormal()
-        ny = - ny
-        d = -(nx*edge.v1.x + ny*edge.v1.y)
-        p1 = array([[nx],[ny],[d]])
-        d = -(nx*edge.v2.x + ny*edge.v2.y)
-        p2 = array([[nx],[ny],[d]])
+#        ny,nx = edge.getNormal()
+#        ny = - ny
+#        d = -(nx*edge.v1.x + ny*edge.v1.y)
+#        p1 = array([[nx],[ny],[d]])
+#        d = -(nx*edge.v2.x + ny*edge.v2.y)
+#        p2 = array([[nx],[ny],[d]])
 
         w = edge.v1.w + edge.v2.w
         Q = edge.v1.Q + edge.v2.Q
-        Qw = (Q + p1.dot(p1.T) + p2.dot(p2.T)) / (w+2.)
+        Qw = Q / w
+#        Qw = (Q + p1.dot(p1.T) + p2.dot(p2.T)) / (w+2.)
         q = array(vstack([ Qw[0:2,:], [0,0,1.] ]))
         #A = Q[:2,:2]
         #B = Q[2,:2]
