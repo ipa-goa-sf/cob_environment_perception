@@ -35,6 +35,7 @@ class IterativeMeshLearner:
         #grid = scan.fill(lim, [.05,.05])
         # marching cubes mesh reconstruction
 
+    '''select all measurments within current view and front face'''
     def getValidMeasurements(self, cam):
         c = csclip.Clipper()
         tf = cam.tf_to_unit_cube.dot(cam.tf_to_cam)
@@ -246,13 +247,14 @@ class IterativeMeshLearner:
             v.flag = False
         #return e_old - e_new
 
-    def simplifyMesh(self,eps):
+    def prepareSimplification(self):
         for e in self.mesh.E:
             if not e.dirty: continue
-            e.updateQuadrics()
+            #e.updateQuadrics()
+            e.updateQuadricsAreaWeighted()
 
         for e in self.mesh.E:
             if not e.dirty: continue
             self.simpler.markForUpdate(e)
 
-        self.simpler.simplify(eps)
+        #self.simpler.simplify(eps)

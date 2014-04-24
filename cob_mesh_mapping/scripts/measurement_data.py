@@ -63,7 +63,7 @@ class MeasurementData(Camera2d):
             ddd = p1 - dd
             d = linalg.norm(ddd)
             #print s, d, dd, p1, ddd
-            return exp(-2.*d**2)
+            return exp(-100.*d**2)
             #if d> 0.1:
             #    return 0
             #else:

@@ -113,17 +113,44 @@ class Sensor(cm.Camera2d):
         self.axis.plot(self.measurement[:,0],self.measurement[:,1],'x')
         self.axis.plot(self.world[:,0],self.world[:,1],'r')
 
-    def showMeasurementInMap(self, axis):
+    def drawMeasurement(self, axis):
         transformed = transform(self.tf_to_world,self.measurement)
         axis.plot(transformed[:,0],transformed[:,1], 'xr')
 
 ### END CLASS -- Sensor ###
 
-def setupAxis(ax1):
-    ax1.axis('equal')
-    ax1.set_xlim(-.5, 6.5)
-    ax1.set_ylim(-.5, 4.5)
-    ax1.grid()
+class Figure:
+    def __init__(self):
+        self.fig = plt.figure(figsize=(1024.0/80, 768.0/80), dpi=80)
+        self.c = 0
+        self.w = None
+        self.s = None
+
+    def setWorld(self, world):
+        self.w = world
+
+    def setActiveSensor(self, sensor):
+        self.s = sensor
+
+    def init(self, title):
+        self.fig.clf()
+        self.ax1 = self.fig.add_subplot(111)
+
+        if self.w is not None:
+            self.w.draw(self.ax1)
+        if self.s is not None:
+            self.s.drawFrustum(self.ax1)
+            self.s.drawPose(self.ax1)
+
+        self.ax1.axis('equal')
+        self.ax1.set_xlim(-.5, 6.5)
+        self.ax1.set_ylim(-.5, 4.5)
+        self.ax1.grid()
+        plt.title(title)
+
+    def save(self, filename, short=""):
+        self.fig.savefig(filename+str(self.c).zfill(5)+short+'.png')
+        self.c = self.c + 1
 
 
 
@@ -207,7 +234,8 @@ iii = 0
 #     visualize results
 ###----------------------------------------------------------------------------
 
-fig1 = plt.figure(figsize=(1024.0/80, 768.0/80), dpi=80)
+fig1 = Figure()
+fig1.setWorld(world)
 #fig2 = plt.figure(figsize=(1024.0/80, 768.0/80), dpi=80)
 #ax2 = fig2.add_subplot(111)
 
@@ -219,66 +247,43 @@ fig1 = plt.figure(figsize=(1024.0/80, 768.0/80), dpi=80)
 fi = 0
 for s in sensors:
     print "Sensor " + str(fi+1)
+    fig1.setActiveSensor(s)
+
     # 1st: measure world
     s.measure(world)
-    fig1.clf()
-    ax1 = fig1.add_subplot(111)
-    plt.title('Measurement')
-    world.draw(ax1)
-    s.drawFrustum(ax1)
-    s.drawPose(ax1)
-    learner.mesh.draw(ax1, 've', 'bbb')
-    s.showMeasurementInMap(ax1)
-    setupAxis(ax1)
-    fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'a.png')
+
+    fig1.init('Measurement')
+    learner.mesh.draw(fig1.ax1, 've', 'bbb')
+    s.drawMeasurement(fig1.ax1)
+    fig1.save('img_out/mesh_learner_')
     print "saved measurement image..."
 
     # 2nd: Preprocess new measurement (meshing + qslim)
-    preproc.compress(s.measurement, 0.001)
+    preproc.compress(s.measurement, 0.0001)
     learner.addMeasurements(md.convertMeshToMeasurementData(preproc.mesh, s))
 
-    fig1.clf()
-    ax1 = fig1.add_subplot(111)
-    plt.title('Measurement Compressed')
-    world.draw(ax1)
-    s.drawFrustum(ax1)
-    s.drawPose(ax1)
-    learner.mesh.draw(ax1, 've', 'bbb')
-    for d in learner.data: d.draw(ax1)
-
-    setupAxis(ax1)
-    fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'b.png')
+    fig1.init('Measurement Compressed')
+    learner.mesh.draw(fig1.ax1, 've', 'bbb')
+    for d in learner.data: d.draw(fig1.ax1)
+    fig1.save('img_out/mesh_learner_')
     print "saved compression image..."
 
     # 3rd: Refine and compensate exsisting map
     learner.extendMesh(s.measurement, s)
-    learner.compensate(s)
-    fig1.clf()
-    ax1 = fig1.add_subplot(111)
-    plt.title('Mesh Refinement')
-    world.draw(ax1)
-    s.drawFrustum(ax1)
-    s.drawPose(ax1)
-    learner.mesh.draw(ax1, 've', 'bbb')
-    setupAxis(ax1)
-    fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'c.png')
+
+    fig1.init('Mesh Refinement')
+    learner.mesh.draw(fig1.ax1, 've', 'bbb')
+    fig1.save('img_out/mesh_learner_')
     print "saved refinement image..."
 
     # 4th: simplify refined parts of map using all measurements (wqslim)
 
-    learner.simplifyMesh(0.01)
-    fig1.clf()
-    ax1 = fig1.add_subplot(111)
-    plt.title('Mesh Simplification')
-    world.draw(ax1)
-    s.drawFrustum(ax1)
-    s.drawPose(ax1)
-    learner.mesh.draw(ax1, 've', 'bbb')
-    setupAxis(ax1)
-    fig1.savefig('img_out/mesh_learner_'+str(fi).zfill(3)+'d.png')
+    learner.compensate(s)
+    learner.prepareSimplification()
+    learner.simpler.simplifyAndPrint(0.0001,fig1)
     print "saved simplification image..."
-
     fi = fi+1
+
 #for d in data:
 #    d.draw(ax2)
 #    d.drawBoundingBox(ax2,[.1,.1])

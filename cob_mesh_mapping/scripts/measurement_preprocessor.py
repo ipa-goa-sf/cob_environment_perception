@@ -42,9 +42,9 @@ class Preprocessor:
 
     def simplifyMesh(self, eps):
         for e in self.simpler.mesh.E:
-            #e.updateQuadricsAreaWeighted()
-            e.updateQuadrics()
+            e.updateQuadricsAreaWeighted()
+            #e.updateQuadrics()
         for e in self.simpler.mesh.E:
             self.simpler.markForUpdate(e)
 
-        self.simpler.simplify(eps)
+        self.simpler.simplify2(eps)
