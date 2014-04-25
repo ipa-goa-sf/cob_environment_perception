@@ -277,7 +277,6 @@ for s in sensors:
     print "saved refinement image..."
 
     # 4th: simplify refined parts of map using all measurements (wqslim)
-
     learner.compensate(s)
     learner.prepareSimplification()
     learner.simpler.simplifyAndPrint(0.0001,fig1)

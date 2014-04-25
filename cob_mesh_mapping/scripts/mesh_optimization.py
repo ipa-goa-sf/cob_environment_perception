@@ -99,16 +99,10 @@ class Simplifier:
             self.mesh.collapse(h.data)
             h = self.heap.pop()
             while(h.data.dirty):
-                #h.data.v1.w = 0
-                #h.data.v2.w = 0
-                #h.data.v1.Q = zeros([3,3])
-                #h.data.v2.Q = zeros([3,3])
-                #h.data.updateQuadricsAreaWeighted()
-
                 w = h.data.v1.w + h.data.v2.w
                 Q = h.data.v1.Q + h.data.v2.Q
-                Qw = Q / w
-                q = array(vstack([ Qw[0:2,:], [0,0,1.] ]))
+                #Qw = Q / w
+                q = array(vstack([ Q[0:2,:], [0,0,1.] ]))
                 det = fabs(linalg.det(q))
                 if det > 0.00000001:
                     v = linalg.inv(q).dot(array([[0],[0],[1.]]))
@@ -118,8 +112,8 @@ class Simplifier:
 
                 h.data.vnew = ms.Vertex(float(v[0]),float(v[1]),Q,w)
                 h.data.vnew.flag = False
-                c = fabs(float(v.T.dot(Qw).dot(v)))
-                #c = fabs(float(v.T.dot(Q).dot(v)))
+                #c = fabs(float(v.T.dot(Qw).dot(v)))
+                c = fabs(float(v.T.dot(Q).dot(v)))
                 #print c
                 h.data.dirty = False
 
@@ -143,8 +137,8 @@ class Simplifier:
             while(h.data.dirty):
                 w = h.data.v1.w + h.data.v2.w
                 Q = h.data.v1.Q + h.data.v2.Q
-                Qw = Q / w
-                q = array(vstack([ Qw[0:2,:], [0,0,1.] ]))
+                #Qw = Q / w
+                q = array(vstack([ Q[0:2,:], [0,0,1.] ]))
                 det = fabs(linalg.det(q))
                 if det > 0.00000001:
                     v = linalg.inv(q).dot(array([[0],[0],[1.]]))
@@ -154,8 +148,8 @@ class Simplifier:
 
                 h.data.vnew = ms.Vertex(float(v[0]),float(v[1]),Q,w)
                 h.data.vnew.flag = False
-                c = fabs(float(v.T.dot(Qw).dot(v)))
-                #c = fabs(float(v.T.dot(Q).dot(v)))
+                #c = fabs(float(v.T.dot(Qw).dot(v)))
+                c = fabs(float(v.T.dot(Q).dot(v)))
                 h.data.dirty = False
 
                 self.heap.push(c,h.data)
