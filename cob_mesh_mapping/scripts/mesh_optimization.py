@@ -30,8 +30,9 @@ class Simplifier:
     def init(self, mesh):
         self.mesh = mesh
         for e in mesh.E:
-            c = self.computeCost(e)
-            self.heap.push(c,e)
+            #c = self.computeCost(e)
+            e.dirty = True
+            self.heap.push(0,e)
 
     def reset(self):
         for h in self.heap.h:
@@ -40,56 +41,10 @@ class Simplifier:
         self.heap.__init__()
 
     def markForUpdate(self, edge):
-        c = self.computeCost(edge)
-        self.heap.push(c,edge)
+        #c = self.computeCost(edge)
+        edge.dirty = True
+        self.heap.push(0,edge)
 
-    def computeCost(self, edge):
-        # compute weak constrains to place v between v1 and v2
-        # this will not be saved for future operations
-#        ny,nx = edge.getNormal()
-#        ny = - ny
-#        d = -(nx*edge.v1.x + ny*edge.v1.y)
-#        p1 = array([[nx],[ny],[d]])
-#        d = -(nx*edge.v2.x + ny*edge.v2.y)
-#        p2 = array([[nx],[ny],[d]])
-
-        w = edge.v1.w + edge.v2.w
-        Q = edge.v1.Q + edge.v2.Q
-        Qw = Q / w
-#        Qw = (Q + p1.dot(p1.T) + p2.dot(p2.T)) / (w+2.)
-        q = array(vstack([ Qw[0:2,:], [0,0,1.] ]))
-        #A = Q[:2,:2]
-        #B = Q[2,:2]
-        #C = Q[2,2]
-        det = fabs(linalg.det(q))
-        if det > 0.0001:
-            v = linalg.inv(q).dot(array([[0],[0],[1.]]))
-            #v = linalg.inv(A).dot(B)
-        else:
-            v = array([[0.5 * (edge.v1.x + edge.v2.x)],
-                       [0.5 * (edge.v1.y + edge.v2.y)],[1]])
-
-        edge.vnew = ms.Vertex(float(v[0]),float(v[1]),Q,w)
-        edge.vnew.flag = False
-        #cost = float(v.T.dot(A).dot(v) + 2.*v.T.dot(B) + C)
-        #cost = fabs(float(v.T.dot(Qw).dot(v)))
-        cost = 0.0001 * fabs(float(v.T.dot(Q).dot(v)))
-        #print det, cost
-
-        edge.dirty = False
-        return cost
-
-    def simplify(self, eps = 0.1, min_vertices = 3):
-        h = self.heap.pop()
-        while(h.cost < eps
-              and len(self.mesh.V) > min_vertices
-              and self.heap.size()>0):
-            self.mesh.collapse(h.data)
-            h = self.heap.pop()
-            while(h.data.dirty):
-                c = self.computeCost(h.data)
-                self.heap.push(c,h.data)
-                h = self.heap.pop()
 
     def simplify2(self, eps, min_vertices=3):
         h = self.heap.pop()
@@ -111,7 +66,7 @@ class Simplifier:
                                [0.5 * (h.data.v1.y + h.data.v2.y)],[1]])
 
                 h.data.vnew = ms.Vertex(float(v[0]),float(v[1]),Q,w)
-                h.data.vnew.flag = False
+                #h.data.vnew.flag = False
                 #c = fabs(float(v.T.dot(Qw).dot(v)))
                 c = fabs(float(v.T.dot(Q).dot(v)))
                 #print c
@@ -147,7 +102,7 @@ class Simplifier:
                                [0.5 * (h.data.v1.y + h.data.v2.y)],[1]])
 
                 h.data.vnew = ms.Vertex(float(v[0]),float(v[1]),Q,w)
-                h.data.vnew.flag = False
+                #h.data.vnew.flag = False
                 #c = fabs(float(v.T.dot(Qw).dot(v)))
                 c = fabs(float(v.T.dot(Q).dot(v)))
                 h.data.dirty = False

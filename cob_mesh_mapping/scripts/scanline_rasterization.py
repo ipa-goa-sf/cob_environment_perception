@@ -68,6 +68,7 @@ class Edge:
         #else: return self.minv*(y-self.t)
         return self.intersection.calc(y)
 
+''' Scanline Rasterization is common method to turn polygons into a raster image '''
 class ScanlineRasterization:
     def __init__(self):
         self.e = []
@@ -75,6 +76,8 @@ class ScanlineRasterization:
     def addEdge(self, p1, p2):
         self.e[len(self.e):] = [ Edge(p1,p2) ]
 
+    ''' casts parallel rays in every row and saves the closest intersection
+    with all edges '''
     def contour(self, limits = [-1.,1.,-1.,1.], cellsize = [0.05,0.05]):
         xmin = limits[0]
         xmax = limits[1]
@@ -96,6 +99,9 @@ class ScanlineRasterization:
 
         return x,y
 
+    ''' not sure if this is still working:
+    increases the level of a row with every front face intersection and
+    decrease with every back face intersection. returns a 2d grid of levels'''
     def fill(self, limits = [-1.,1.,-1.,1.], cellsize = [0.05,0.05]):
         xmin = limits[0]
         xmax = limits[1]

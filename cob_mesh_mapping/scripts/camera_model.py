@@ -13,7 +13,7 @@ def drawPoses(objects,axis):
     axis.quiver(vf[:,0],vf[:,1],vf[:,2],vf[:,3],facecolor='r',
                 width=0.002,headlength=8,headwidth=6,headaxislength=8)
 
-
+'''provides a virtual camera and its transformations in 2d space'''
 class Camera2d:
     """ res: number of pixels (multiple of 2)"""
     def __init__(self, fov, far, near, res = 48.):
@@ -71,12 +71,14 @@ class Camera2d:
                                   [0, 0, 1.]])
         self.tf_to_cam = linalg.inv(self.tf_to_world)
 
+    ''' draw field of view to figure '''
     def drawFrustum(self, axis):
         vfrustum = transform(self.tf_to_world, self.frustum)[:,0:2]
         poly = mpatches.Polygon(vfrustum, alpha=.2, fc=(0,.75,0))
         axis.add_patch(poly)
 
-    def drawPose(self,axis):
+    ''' draws an 'o' at the camera position '''
+    def drawPosition(self,axis):
         axis.plot(self.pos[0],self.pos[1], 'o',
                   markeredgecolor=(0,0,0), markerfacecolor=(0,0,0),
                   markersize=2)

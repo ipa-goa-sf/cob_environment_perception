@@ -57,7 +57,7 @@ class IterativeMeshLearner:
         # however: remember anchor vertices of map where
         # the refined mesh is going to be hooked up on
         v_hooks = []
-        self.simpler.reset() # reset simplifier
+        #self.simpler.reset() # reset simplifier
 
 
         v_hooks = [(100.0, None),(-100.0, None)]
@@ -66,11 +66,12 @@ class IterativeMeshLearner:
         scan = sl.ScanlineRasterization()
         tf = cam.tf_to_unit_cube.dot(cam.tf_to_cam)
         for e in self.mesh.E:
+            e.dirty = False
             w0 = tf.dot(e.v1.getPosAffine()) # redundant transform
             w1 = tf.dot(e.v2.getPosAffine()) # TODO: do better!
             # backface culling (this is just a quick and dirty workaround
             # better: check face normal with some tolerance)
-            if (w1[1] - w0[1]) < -.001: continue
+            if (w1[1] - w0[1]) < .001: continue
 
             pass0 = pass1 = False
             if w0[-1] > 0:
@@ -104,8 +105,10 @@ class IterativeMeshLearner:
                     if p0[1] > v_hooks[1][0]: v_hooks[1] = (p0[1], e.v2)
                     if p1[1] > v_hooks[1][0]: v_hooks[1] = (p1[1], e.v2)
 
+                # add to rasteriation process
                 scan.addEdge(p0,p1)
-                e.dirty = True # mark for deletion
+                # remove from mesh
+                e.dirty = True
 
             if pass1:
                 if p10[-1] != 0: p0 = p10/p10[-1]
@@ -175,7 +178,7 @@ class IterativeMeshLearner:
 
             pt = cam.tf_to_world.dot(m[j])
             v2 = self.mesh.add(pt[0],pt[1])
-            if fabs(m[j][0] - m[j-1][0]) < .07*(m[j][0])**2+.1:
+            if fabs(m[j][0] - m[j-1][0]) < .04*(m[j][0])**2+.01:
                 e = self.mesh.connect(v1,v2)
                 e.dirty = True # mark as new
 
