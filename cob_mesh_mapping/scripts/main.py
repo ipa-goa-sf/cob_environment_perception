@@ -177,7 +177,8 @@ s1 = array([Sensor([4.0, 5.0],[-1.,-.5]),
             Sensor([3.0, 3.0],[ 0.,-1.]),
             Sensor([2.5, 3.0],[ .5,-1.]),
             Sensor([2.0, 3.0],[ 0.,-1.]),
-            Sensor([2.0, 2.5],[-.5,-.5])])
+            Sensor([2.0, 2.5],[-.5,-.5])
+])
 
 circle_size = 12.0
 angles = array(range(int(circle_size)))/circle_size*(3.0/2.0*pi)-3.*pi/4.

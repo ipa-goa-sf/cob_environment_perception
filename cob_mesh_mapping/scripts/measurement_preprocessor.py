@@ -33,7 +33,7 @@ class Preprocessor:
 
             v2 = self.mesh.add(m[j][0],m[j][1])
             # perform rough distance check:
-            if not broke and fabs(m[j][0] - m[j-1][0]) < .06*(m[j][0])**2+.07:
+            if not broke and fabs(m[j][0] - m[j-1][0]) < .04*(m[j][0])**2+.01:
                 e = self.mesh.connect(v1,v2)
                 e.dirty = True # mark as new
 

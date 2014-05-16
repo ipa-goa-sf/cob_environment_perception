@@ -16,7 +16,7 @@ def drawPoses(objects,axis):
 '''provides a virtual camera and its transformations in 2d space'''
 class Camera2d:
     """ res: number of pixels (multiple of 2)"""
-    def __init__(self, fov, far, near, res = 48.):
+    def __init__(self, fov, far, near, res = 64.):
         tan_fov_2 = tan(fov*0.5)
         self.res = res
         self.fov = fov
