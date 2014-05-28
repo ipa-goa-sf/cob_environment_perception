@@ -1,0 +1,101 @@
+#!/usr/bin/python
+
+from numpy import *
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import sensor_model as sm
+
+def weight(x,s):
+    p = mat([[0],[0],[x]])
+    return 100.*s.covariance(p)[-1,-1]
+
+sensor = sm.SensorModel()
+nn = 10
+beta_true = mat(random.rand(3,1))
+beta_true = mat([-1.,1.2,-0.25]).T
+beta_true = beta_true/linalg.norm(beta_true)
+samples = mat(hstack([2.*random.rand(nn,1)+1.,zeros([nn,1]),ones([nn,1])]))
+for i in range(nn):
+    samples[i,1] = samples[i]*beta_true / -beta_true[1]
+    samples[i,1] = samples[i,1] + weight(samples[i,1],sensor)*random.randn()
+
+A = mat(zeros([3,3]))
+sig2 = mat(zeros([nn,1]))
+
+for i in range(nn):
+    x = samples[i].T
+    sig2[i] = weight(x[1],sensor)
+    A = A + x*x.T / sig2[i]
+
+Ainv = linalg.inv(A)
+mu = Ainv[:-1,-1] / Ainv[-1,-1] # A_12 / A_22
+grad = vstack([mu,mat(1.)])
+grad = grad / linalg.norm(grad)
+
+# fill grid in euclidean space (x1,x2)
+X1,X2 = meshgrid(linspace(0,3,50),linspace(0,3,50))
+F_grad = zeros(shape(X1))
+for yi in range(shape(X1)[0]):
+    for xi in range(shape(X1)[1]):
+        x = mat([[X1[yi,xi]],[X2[yi,xi]],[1.]])
+        F_grad[yi,xi] = x.T*grad
+
+
+nnn = 50
+mus = zeros(nnn)
+conf_p = zeros([nnn,3])
+conf_n = zeros([nnn,3])
+xmin = samples[:,0].min()
+xmax = samples[:,0].max()
+samples_new = mat(hstack([mat(linspace(xmin,xmax,nnn)).T,zeros([nnn,1]),ones([nnn,1])]))
+for i in range(nnn):
+    samples_new[i,1] = samples_new[i]*grad / -grad[1]
+    x = samples_new[i].T
+    mus[i] = x.T * Ainv * x #+ weight(x[1],sensor)
+    conf_p[i] = array(x + grad * 3.*mus[i] * 1.)[:,0]
+    conf_n[i] = array(x - grad * 3.*mus[i] * 1.)[:,0]
+
+# fill grid in paramter space (a,b):
+'''
+P1,P2 = meshgrid(linspace(-1,1,50),linspace(-1,1,50))
+Pp = zeros(shape(P1))
+for qi in range(shape(P1)[0]):
+    for pi in range(shape(P1)[1]):
+        p = mat([[P1[qi,pi]],[P2[qi,pi]]])
+        Pp[qi,pi] = p.T*A*p  / 100000.
+'''
+
+'''
+phi = linspace(-math.pi, math.pi, 50)
+p_norm = zeros(shape(phi))
+test = zeros(shape(phi))
+for i in range(shape(phi)[0]):
+    p = mat([[math.cos(phi[i])],[math.sin(phi[i])]])
+    p_norm[i] = p.T*A*p
+    test[i] = (A[0,1]+A[1,1])*(sin(2.*phi[i])+1.)
+'''
+
+
+fig1 = plt.figure()
+ax1 = fig1.add_subplot(111)
+cs1 = ax1.contour(X1,X2,F_grad,20)
+ax1.clabel(cs1,inline=1,fontsize=10)
+ax1.plot(samples[:,0],samples[:,1], 'x')
+ax1.plot(conf_p[:,0],conf_p[:,1],'r')
+ax1.plot(conf_n[:,0],conf_n[:,1],'r')
+ax1.grid()
+
+'''
+fig2 = plt.figure()
+ax2 = fig2.add_subplot(111)
+cs2 = ax2.contour(P1,P2,Pp,20)
+ax2.clabel(cs2,inline=1,fontsize=10)
+ax2.grid()
+
+fig3 = plt.figure()
+ax3 = fig3.add_subplot(111)
+ax3.plot(phi,p_norm)
+ax3.plot(phi,test)
+ax3.grid()
+'''
+plt.show()

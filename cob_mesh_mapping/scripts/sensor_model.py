@@ -67,6 +67,7 @@ class SensorModel:
         return coef * math.exp(ex) * interval
 
 
+"""
 s = SensorModel()
 fig = plt.figure()
 ax = fig.add_subplot(111)
@@ -102,3 +103,4 @@ disp(c2 * 1000)
 disp(s.log_probability(off, c2))
 disp(c22 * 1000)
 disp(s.log_probability(off,c22))
+"""
