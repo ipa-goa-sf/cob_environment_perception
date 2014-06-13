@@ -10,12 +10,12 @@ def weight(x,s):
     return 100.*s.covariance(p)[-1,-1]
 
 sensor = sm.SensorModel()
-nn = 10
+nn = 100
 beta_true1 = mat([-1.,1.2,-0.25]).T
 beta_true1 = beta_true1/linalg.norm(beta_true1)
 samples1 = mat(hstack([2.*random.rand(nn,1)+1.,zeros([nn,1]),ones([nn,1])]))
 
-beta_true2 = mat([1.,.7,-2.25]).T
+beta_true2 = mat([1.,.7,-1.75]).T
 beta_true2 = beta_true2/linalg.norm(beta_true2)
 samples2 = mat(hstack([2.*random.rand(nn,1)-1.,zeros([nn,1]),ones([nn,1])]))
 for i in range(nn):
@@ -35,8 +35,11 @@ for i in range(nn):
     x = samples2[i].T
     B = B + x*x.T / weight(x[1],sensor)
 
+A = A + 0.001*identity(3)
+B = B + 0.001*identity(3)
 Ainv = linalg.inv(A)
 Binv = linalg.inv(B)
+Cinv = linalg.inv(A+B)
 mu = Ainv[:-1,-1] / Ainv[-1,-1] # A_12 / A_22
 grad = vstack([mu,mat(1.)])
 grad = grad / linalg.norm(grad)
@@ -51,9 +54,11 @@ for yi in range(shape(X1)[0]):
         x = mat([[X1[yi,xi]],[X2[yi,xi]],[1.]])
         F_grad[yi,xi] = x.T*grad
         det1[yi,xi] = ( sqrt( (2.*pi)**3 * linalg.det(linalg.inv(x*x.T + A)))
-                       + sqrt( (2.*pi)**3 * linalg.det(linalg.inv(x*x.T + B))) )
+                       * sqrt( (2.*pi)**3 * linalg.det(linalg.inv(x*x.T + B))) )
         det2[yi,xi] = 0.5*(exp(-0.5*x.T*Ainv*x)/(sqrt((2.*pi)**3*linalg.det(A)))
-                           +exp(-0.5*x.T*Binv*x)/(sqrt((2.*pi)**3*linalg.det(B))))*1000.
+                           *exp(-0.5*x.T*Binv*x)/(sqrt((2.*pi)**3*linalg.det(B))))*1000.
+        #det1[yi,xi] = 0.5*exp(-0.5*x.T*Cinv*x)/sqrt((2.*pi)**3*linalg.det(A+B))*1000.
+        #det1[yi,xi] = sqrt( (2.*pi)**3 * linalg.det(linalg.inv(x*x.T+A)) )
 
 
 nnn = 50
