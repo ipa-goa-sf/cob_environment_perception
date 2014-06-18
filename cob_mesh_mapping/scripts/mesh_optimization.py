@@ -84,6 +84,7 @@ class Simplifier:
 
             fig.init('Mesh Simplification')
             self.mesh.draw(fig.ax1, 've', 'bbb')
+            fig.plotPrecision(h.data.v1.Q + h.data.v2.Q)
             fig.save('img_out/mesh_learner_')
             fii = fii+1
 
@@ -105,6 +106,7 @@ class Simplifier:
                 #h.data.vnew.flag = False
                 #c = fabs(float(v.T.dot(Qw).dot(v)))
                 c = fabs(float(v.T.dot(Q).dot(v)))
+                print c
                 h.data.dirty = False
 
                 self.heap.push(c,h.data)

@@ -16,7 +16,7 @@ class Vertex:
         """ """
         self.x = x
         self.y = y
-        self.Q = w * q
+        self.Q = mat(q) #w * q
         self.w = w
         self.e1 = None
         self.e2 = None
