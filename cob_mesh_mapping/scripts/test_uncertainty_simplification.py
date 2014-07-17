@@ -1,3 +1,4 @@
+
 #!/usr/bin/python
 
 from numpy import *
@@ -64,8 +65,12 @@ for i in range(int(.5*nn),nn):
 m = ms.Mesh()
 v1 = m.add(samples[0,0],samples[0,1])
 v1.Q = mat(1.*computeQ(samples[0].T, samples[1].T, sensor) + 100.*identity(3))
+v1.P = sensor.covariance(mat([[0],[v1.x],[v1.y]]))[1:,1:]
 for i in range(1,nn):
     v2 = m.add(samples[i,0],samples[i,1])
+    # P: samples covariance of sensor meassurement
+    v2.P = sensor.covariance(mat([[0],[v2.x],[v2.y]]))[1:,1:]
+    # Q: parameters precision of fit to samples [i-1] and [i]
     Q = computeQ(samples[i-1].T, samples[i].T, sensor)
     v1.Q = mat(v1.Q + Q)
     v2.Q = mat(v2.Q + Q)
@@ -81,7 +86,39 @@ fig1 = Figure()
 #ax1.grid()
 
 simpler = mo.Simplifier(m)
-simpler.simplifyAndPrint(1.,fig1)
+
+h = simpler.heap.pop()
+fii = 0
+while(len(m.V) > 3 and simpler.heap.size() > 0):
+    while(h.data.dirty):
+        # precision matrix (parameter space):
+        Q = h.data.v1.Q + h.data.v2.Q
+        # new covariance matrix (parameter space)
+        Qinv = linalg.inv(Q)
+        v = Qinv[:-1,-1]/Qinv[-1,-1]
+        # covariance matrix (point space)
+        P = Qinv[:-1,:-1] - v * Qinv[-1,:-1] + 1.*(v1.P+v2.P)
+        h.data.vnew = ms.Vertex(float(v[0]),float(v[1]))
+        h.data.vnew.Q = Q
+        h.data.vnew.P = P
+        c = float(v.T * P * v)
+        print c
+        h.data.dirty = False
+        simpler.heap.push(c,h.data)
+        h = simpler.heap.pop()
+
+    if (h.cost < .0000001): break
+
+    fig1.init('Mesh Simplification')
+    m.draw(fig1.ax1, 've', 'bbb')
+    fig1.plotPrecision(h.data.v1.Q + h.data.v2.Q)
+    fig1.save('img_out/mesh_learner_')
+    fii = fii+1
+
+    m.collapse(h.data)
+    h = simpler.heap.pop()
+
+#simpler.simplifyAndPrint(1.,fig1)
 
 #fig1.init('blub')
 #fig1.ax1.plot(samples[:,0],samples[:,1],'x-')

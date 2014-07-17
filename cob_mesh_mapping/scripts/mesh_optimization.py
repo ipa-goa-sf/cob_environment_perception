@@ -113,7 +113,6 @@ class Simplifier:
                 h = self.heap.pop()
 
 
-
 #m = ms.Mesh()
 #m.test_load()
 #m.test_show()

@@ -17,6 +17,7 @@ class Vertex:
         self.x = x
         self.y = y
         self.Q = mat(q) #w * q
+        self.P = mat(zeros([3,3]))
         self.w = w
         self.e1 = None
         self.e2 = None
