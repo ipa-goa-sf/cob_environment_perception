@@ -4,6 +4,56 @@ from numpy import *
 import matplotlib.pyplot as plt
 import sensor_model as sm
 
+''' convert rotation matrix to quaternion '''
+def m2q(M):
+    w = 0.5 * sqrt(1. + M[0,0] + M[1,1] + 1.)
+    x = 0 #3d: (M[2,1]-M[1,2]) / (4.*w)
+    y = 0 #3d: (M[0,2]-M[2,0]) / (4.*w)
+    z = (M[1,0]-M[0,1]) / (4.*w)
+    return array([w,x,y,z])
+
+def q2m(q):
+    w,x,y,z = q
+    xx = 1. - 2.*(y**2 + z**2)
+    xy = 2.*(x*y + w*z)
+    yy = 1. - 2.*(x**2 + z**2)
+    #xz = 2.*(x*z + w*y)
+    #yz = 2.*(y*z + w*x)
+    #zz = 1. - 2.*(x**2 + y**2)
+    return mat([[xx, xy], [xy, yy]])
+
+''' interpolation of quaternions '''
+def slerp(q1,q2,t):
+    omega = arccos( dot(q1/linalg.norm(q1), q2/linalg.norm(q2)) )
+    so = 1./sin(omega)
+    q = sin((1.-t)*omega)*so*q1 + sin(t*omega)*so*q2
+    return q
+
+''' polar decomposition M = QS '''
+def qs(M):
+    # 2d only, 3d requires iterative approach (see paper)
+    #Mt = mat([[M[1,1],-M[1,0]], [-M[0,1],M[0,0]]])
+    #Q = M + sign(linalg.det(M)) * Mt
+    #S = linalg.inv(Q)*M
+    U,s,V = linalg.svd(M)
+    Q = mat(U)
+    Q[:,1] = -1.*Q[:,1]
+    S = Q*mat(diag(s))*Q.T
+    return Q,S
+
+''' covariance linear interpolation '''
+def covLerp(C1,C2,t):
+    Q1,S1 = qs(C1)
+    Q2,S2 = qs(C2)
+    Q = q2m( slerp(m2q(Q1), m2q(Q2), t) )
+    print Q
+    S = (1.-t)*S1 + t*S2
+    print S
+    A = Q*S
+    print A
+    return A*C1*A.T
+
+
 ''' project point p on line v '''
 def projectOnLine(v, p):
     l = 1./linalg.norm(v)
@@ -14,8 +64,10 @@ def projectOnLine(v, p):
 
 ''' linear interpolation of covariance matrix C1(v1)->C2(v2)'''
 def linIntCov(a, C1, C2):
-    return a * C2 + (1.-a) * C1
+    return (a) * C2 + (1.-a) * C1
     #return a**2 * C2 + (1.-a)**2 * C1
+
+    #return a**2 * C2 + (1.-a**2) * C1
 
 
 def weight(x,s):
@@ -63,10 +115,10 @@ def plotCov(mu, C, axis, color=''):
 
 sensor = sm.SensorModel()
 
-v1 = mat([-0.1,2.3]).T
-v2 = mat([0.3,2.3]).T
-v3 = mat([0.5,2.1]).T
-v4 = mat([0.5,2.0]).T
+v1 = mat([-0.8,2.3]).T
+v2 = mat([0.4,2.3]).T
+v3 = mat([0.9,1.8]).T
+v4 = mat([0.9,1.4]).T
 
 points = array(hstack([v1,v2,v3,v4])).T
 
@@ -75,13 +127,25 @@ V2 = cov2d(v2,sensor)
 V3 = cov2d(v3,sensor)
 V4 = cov2d(v4,sensor)
 
+U,S,V = linalg.svd(V1)
+T1 = mat(U)
+T1[:,0] = T1[:,0] * S[0]
+T1[:,1] = T1[:,1] * S[1]
+
+U,S,V = linalg.svd(V2)
+T2 = mat(U)
+T2[:,0] = T2[:,0] * S[0]
+T2[:,1] = T2[:,1] * S[1]
+
+A = T2*linalg.inv(T1)
+
 minx = min(points[:,0])
 maxx = max(points[:,0])
 miny = min(points[:,1])
 maxy = max(points[:,1])
 
-xx1 = [minx-.3,maxx+.3]
-xx2 = [miny-.3,maxy+.3]
+xx1 = [minx-.1,maxx+.1]
+xx2 = [miny-.15,maxy+.15]
 
 # Q for collapsing v2 and v3
 Q1 = computeQ(affine(v1),affine(v2),sensor)
@@ -100,8 +164,10 @@ Qinv = linalg.inv(B1 + 2.*B2 + B3)
 w = Qinv[:-1,-1]/Qinv[-1,-1]
 
 # origin at v2:
-u1, a1 = projectOnLine(v1-v2, w-v2)
-U1 = linIntCov(a1, V2, V1)
+#u1, a1 = projectOnLine(v1-v2, w-v2)
+#U1 = linIntCov(a1, V2, V1)
+u1, a1 = projectOnLine(v2-v1,w-v1)
+U1 = linIntCov(a1, V1, V2)
 # origin at v2:
 u2, a2 = projectOnLine(v3-v2, w-v2)
 U2 = linIntCov(a2, V2, V3)
@@ -124,22 +190,31 @@ fig.clf()
 ax = fig.add_subplot(111)
 ax.grid()
 ax.plot(points[:,0],points[:,1],'x-')
-ohs = array(hstack([w,v2+u1,v2+u2,v3+u3])).T
+ohs = array(hstack([w,v1+u1,v2+u2,v3+u3])).T
 ax.plot(ohs[:,0],ohs[:,1],'o')
 #plotFit(B1,xx1,xx2,ax,'r')
 #plotFit(B2,xx1,xx2,ax,'b')
 #plotFit(B3,xx1,xx2,ax,'g')
 #plotFit(B1 + 2.*B2 + B3,xx1,xx2,ax,'k')
 plotCov(v1,10.*V1,ax)
-plotCov(v2,10.*V2,ax)
-plotCov(v3,10.*V3,ax)
-plotCov(v4,10.*V4,ax)
+#plotCov(v2,10.*V2,ax)
+#plotCov(v3,10.*V3,ax)
+#plotCov(v4,10.*V4,ax)
 
-plotCov(v2+u1,10.*U1,ax)
-plotCov(v2+u2,10.*U2,ax)
-plotCov(v3+u3,10.*U3,ax)
-plotCov(w,10.*W,ax)
+plotCov(.5*(v1+v2),10*covLerp(V1,V2,.5),ax)
+plotCov(v2,10*covLerp(V1,V2,.1),ax)
+
+#plotCov(v1+u1,10.*U1,ax)
+#plotCov(v2+u2,10.*U2,ax)
+#plotCov(v3+u3,10.*U3,ax)
+
+#plotCov(v2+u1,10.*cov2d(v2+u1,sensor),ax)
+#plotCov(v2+u2,10.*cov2d(v2+u2,sensor),ax)
+#plotCov(v3+u3,10.*cov2d(v3+u3,sensor),ax)
+
+#plotCov(w,10.*W,ax)
 #plotCov(w,10.*Wtrue,ax)
 ax.axis('equal')
 ax.axis([xx1[0],xx1[1],xx2[0],xx2[1]])
 plt.show()
+
