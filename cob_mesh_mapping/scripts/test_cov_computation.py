@@ -5,28 +5,30 @@ import matplotlib.pyplot as plt
 import sensor_model as sm
 
 ''' convert rotation matrix to quaternion '''
-def m2q(M):
+def mat2quat(M):
     w = 0.5 * sqrt(1. + M[0,0] + M[1,1] + 1.)
     x = 0 #3d: (M[2,1]-M[1,2]) / (4.*w)
     y = 0 #3d: (M[0,2]-M[2,0]) / (4.*w)
     z = (M[1,0]-M[0,1]) / (4.*w)
     return array([w,x,y,z])
 
-def q2m(q):
+def quat2mat(q):
     w,x,y,z = q
     xx = 1. - 2.*(y**2 + z**2)
-    xy = 2.*(x*y + w*z)
+    xy = 2.*(x*y - w*z)
+    yx = 2.*(x*y + w*z)
     yy = 1. - 2.*(x**2 + z**2)
-    #xz = 2.*(x*z + w*y)
-    #yz = 2.*(y*z + w*x)
-    #zz = 1. - 2.*(x**2 + y**2)
-    return mat([[xx, xy], [xy, yy]])
+    return mat([[xx, xy], [yx, yy]])
 
 ''' interpolation of quaternions '''
 def slerp(q1,q2,t):
     omega = arccos( dot(q1/linalg.norm(q1), q2/linalg.norm(q2)) )
+    #print "Deg: ",rad2deg(omega)
     so = 1./sin(omega)
-    q = sin((1.-t)*omega)*so*q1 + sin(t*omega)*so*q2
+    if linalg.norm(q1 - q2) < linalg.norm(q1 + q2):
+        q = sin((1.-t)*omega)*so*q1 + sin(t*omega)*so*q2
+    else:
+        q = sin((1.-t)*omega)*so*q1 + sin(t*omega)*so*-q2
     return q
 
 ''' polar decomposition M = QS '''
@@ -35,22 +37,32 @@ def qs(M):
     #Mt = mat([[M[1,1],-M[1,0]], [-M[0,1],M[0,0]]])
     #Q = M + sign(linalg.det(M)) * Mt
     #S = linalg.inv(Q)*M
+    #print "M:",M
+
+    #print "det:", linalg.det(M)
     U,s,V = linalg.svd(M)
     Q = mat(U)
-    Q[:,1] = -1.*Q[:,1]
-    S = Q*mat(diag(s))*Q.T
+    if Q[1,0] > 0: Q = -1.*Q
+    if linalg.det(Q) < 0:
+        Q[:,1] = -1.*Q[:,1]
+
+    S = linalg.inv(Q)*M #Q*mat(diag(s))*Q.T
+    #print "Q:\n",Q
+    #print "Det:\n",linalg.det(Q)
     return Q,S
 
 ''' covariance linear interpolation '''
 def covLerp(C1,C2,t):
     Q1,S1 = qs(C1)
     Q2,S2 = qs(C2)
-    Q = q2m( slerp(m2q(Q1), m2q(Q2), t) )
-    print Q
+    Q = quat2mat( slerp(mat2quat(Q1), mat2quat(Q2), t) )
+    #print Q
     S = (1.-t)*S1 + t*S2
-    print S
-    A = Q*S
-    print A
+    print "S:\n",S
+    #A = Q*S
+    A = Q*linalg.inv(Q1)
+    #B = S*linalg.inv(S1)
+    #print "A:\n",A
     return A*C1*A.T
 
 
@@ -110,6 +122,12 @@ def plotCov(mu, C, axis, color=''):
             f[yi,xi] = exp(-0.5*x.T * Cinv * x)
 
     axis.contour(X1,X2,f,5)
+
+def plotEig(mu, C, axis):
+    Q,S = qs(C)
+    #print Q
+    axis.arrow(mu[0,0], mu[1,0], .15*Q[0,0], .15*Q[1,0])
+    axis.arrow(mu[0,0], mu[1,0], .05*Q[0,1], .05*Q[1,1])
 
 
 
@@ -197,12 +215,22 @@ ax.plot(ohs[:,0],ohs[:,1],'o')
 #plotFit(B3,xx1,xx2,ax,'g')
 #plotFit(B1 + 2.*B2 + B3,xx1,xx2,ax,'k')
 plotCov(v1,10.*V1,ax)
-#plotCov(v2,10.*V2,ax)
-#plotCov(v3,10.*V3,ax)
-#plotCov(v4,10.*V4,ax)
+plotEig(v1,V1,ax)
+plotCov(v2,10.*V2,ax)
+plotEig(v2,V2,ax)
+plotCov(v3,10.*V3,ax)
+plotEig(v3,V3,ax)
+plotCov(v4,10.*V4,ax)
+plotEig(v4,V4,ax)
 
-plotCov(.5*(v1+v2),10*covLerp(V1,V2,.5),ax)
-plotCov(v2,10*covLerp(V1,V2,.1),ax)
+for i in range(2,9,2):
+    a = .1*i
+    plotEig((1.-a)*v1+a*v2,10*covLerp(V1,V2,a),ax)
+    plotCov((1.-a)*v1+a*v2,10*covLerp(V1,V2,a),ax)
+    plotEig((1.-a)*v2+a*v3,10*covLerp(V2,V3,a),ax)
+    plotCov((1.-a)*v2+a*v3,10*covLerp(V2,V3,a),ax)
+
+#plotCov(v2,10*covLerp(V1,V2,.1),ax)
 
 #plotCov(v1+u1,10.*U1,ax)
 #plotCov(v2+u2,10.*U2,ax)
