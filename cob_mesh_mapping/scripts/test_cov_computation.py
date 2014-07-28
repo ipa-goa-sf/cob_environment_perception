@@ -12,6 +12,7 @@ def mat2quat(M):
     z = (M[1,0]-M[0,1]) / (4.*w)
     return array([w,x,y,z])
 
+''' convert quaternion to rotation matrix '''
 def quat2mat(q):
     w,x,y,z = q
     xx = 1. - 2.*(y**2 + z**2)
@@ -46,7 +47,7 @@ def qs(M):
     if linalg.det(Q) < 0:
         Q[:,1] = -1.*Q[:,1]
 
-    S = linalg.inv(Q)*M #Q*mat(diag(s))*Q.T
+    S = mat(diag(s))
     #print "Q:\n",Q
     #print "Det:\n",linalg.det(Q)
     return Q,S
@@ -60,10 +61,10 @@ def covLerp(C1,C2,t):
     S = (1.-t)*S1 + t*S2
     print "S:\n",S
     #A = Q*S
-    A = Q*linalg.inv(Q1)
+    #A = Q*linalg.inv(Q1)
     #B = S*linalg.inv(S1)
     #print "A:\n",A
-    return A*C1*A.T
+    return Q*S*Q.T
 
 
 ''' project point p on line v '''
@@ -185,21 +186,24 @@ w = Qinv[:-1,-1]/Qinv[-1,-1]
 #u1, a1 = projectOnLine(v1-v2, w-v2)
 #U1 = linIntCov(a1, V2, V1)
 u1, a1 = projectOnLine(v2-v1,w-v1)
-U1 = linIntCov(a1, V1, V2)
+U1 = covLerp(V1, V2, a1)
 # origin at v2:
 u2, a2 = projectOnLine(v3-v2, w-v2)
-U2 = linIntCov(a2, V2, V3)
+U2 = covLerp(V2, V3, a2)
 # origin at v3:
 u3, a3 = projectOnLine(v4-v3, w-v3)
-U3 = linIntCov(a3, V3, V4)
+U3 = covLerp(V3, V4, a3)
 
 d1 = linalg.norm(w-u1)
 d2 = linalg.norm(w-u2)
 d3 = linalg.norm(w-u3)
 
+D = vstack([hstack([v1+u1,v2+u2,v3+u3]),ones([1,3])])
+alpha = linalg.inv(D)*affine(w)
 ninv = 1./(d1+d2+d3)
 
-W = (1.-d1*ninv)**2 * U1 + (1.-d2*ninv)**2 * U2 + (1.-d3*ninv)**2 * U3
+W = (d1*ninv) * U1 + (d2*ninv) * U2 + (d3*ninv) * U3
+W2 = alpha[0,0] * U1 + alpha[1,0] * U2 + alpha[2,0] * U3
 #W = (1.-d1*ninv) * U1 + (1.-d2*ninv) * U2 + (1.-d3*ninv) * U3
 Wtrue = cov2d(w,sensor)
 
@@ -222,26 +226,36 @@ plotCov(v3,10.*V3,ax)
 plotEig(v3,V3,ax)
 plotCov(v4,10.*V4,ax)
 plotEig(v4,V4,ax)
-
+'''
 for i in range(2,9,2):
     a = .1*i
     plotEig((1.-a)*v1+a*v2,10*covLerp(V1,V2,a),ax)
     plotCov((1.-a)*v1+a*v2,10*covLerp(V1,V2,a),ax)
     plotEig((1.-a)*v2+a*v3,10*covLerp(V2,V3,a),ax)
     plotCov((1.-a)*v2+a*v3,10*covLerp(V2,V3,a),ax)
-
+'''
 #plotCov(v2,10*covLerp(V1,V2,.1),ax)
 
-#plotCov(v1+u1,10.*U1,ax)
-#plotCov(v2+u2,10.*U2,ax)
-#plotCov(v3+u3,10.*U3,ax)
+if 1==1:
+    plotCov(v1+u1,10.*U1,ax)
+    plotEig(v1+u1,U1,ax)
+    plotCov(v2+u2,10.*U2,ax)
+    plotEig(v2+u2,U2,ax)
+    plotCov(v3+u3,10.*U3,ax)
+    plotEig(v3+u3,U3,ax)
+    plotCov(w,10.*W2,ax)
+    plotEig(w,W2,ax)
+else:
+    plotCov(v1+u1,10.*cov2d(v1+u1,sensor),ax)
+    plotCov(v2+u2,10.*cov2d(v2+u2,sensor),ax)
+    plotCov(v3+u3,10.*cov2d(v3+u3,sensor),ax)
+    plotEig(v1+u1,cov2d(v1+u1,sensor),ax)
+    plotEig(v2+u2,cov2d(v2+u2,sensor),ax)
+    plotEig(v3+u3,cov2d(v3+u3,sensor),ax)
 
-#plotCov(v2+u1,10.*cov2d(v2+u1,sensor),ax)
-#plotCov(v2+u2,10.*cov2d(v2+u2,sensor),ax)
-#plotCov(v3+u3,10.*cov2d(v3+u3,sensor),ax)
+    plotCov(w,10.*Wtrue,ax)
+    plotEig(w,Wtrue,ax)
 
-#plotCov(w,10.*W,ax)
-#plotCov(w,10.*Wtrue,ax)
 ax.axis('equal')
 ax.axis([xx1[0],xx1[1],xx2[0],xx2[1]])
 plt.show()
