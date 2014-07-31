@@ -377,7 +377,14 @@ print "\nangular error to blerp2 (mean,std):"
 print "blerp1: ",ea21.mean(),ea21.std()
 print "blerp3: ",ea23.mean(),ea23.std()
 
-switch = 1
+es = zeros(n)
+for i in range(n):
+    es[i] = linalg.norm(St[i]-S[i])
+
+print "\nfrobenius norm scale error (mean,std):"
+print es.mean()," ",es.std()
+
+switch = 3
 if switch==1:
     fig1 = plt.figure()
     fig2 = plt.figure()
@@ -406,4 +413,29 @@ elif switch==2:
     col = 'bgrcmykw'
     for i in range(shape(pp)[0]):
         ax.plot(pp[i,0],pp[i,1],'o'+col[i%len(col)])
+    plt.show()
+elif switch==3:
+    idx = es.argsort()[-5:]
+    #idx = es.argsort()[:5]
+    t1 = v1[idx]
+    t2 = v2[idx]
+    t3 = v3[idx]
+    xx = vstack([t1[:,0],t2[:,0],t3[:,0],t1[:,0]])
+    yy = vstack([t1[:,1],t2[:,1],t3[:,1],t1[:,1]])
+    pp = p[idx]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.grid()
+    ax.plot(xx,yy,'x-')
+    col = 'bgrcmykw'
+    for i in range(shape(pp)[0]):
+        ax.plot(pp[i,0],pp[i,1],'o'+col[i%len(col)])
+
+    plt.show()
+elif switch==4:
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.grid()
+    ax.hist(es,50)
     plt.show()
