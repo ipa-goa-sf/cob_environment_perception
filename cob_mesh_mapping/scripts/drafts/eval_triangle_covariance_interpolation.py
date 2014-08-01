@@ -35,8 +35,9 @@ def projectOnLine(v, p):
     u = a*vn
     return u,a*l
 
-''' creates affine vector of p '''
+
 def aff(p):
+    ''' creates affine vector of p '''
     return vstack([p,1.])
 
 ''' convert rotation matrix to quaternion '''
@@ -271,7 +272,7 @@ def m(a,i):
     return mat(a[i]).T
 
 
-n = 10000
+n = 10
 sensor = sm.SensorModel()
 v1 = randomSensorPoint(n)
 v2 = randomSensorPoint(n)

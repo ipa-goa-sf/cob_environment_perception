@@ -7,13 +7,16 @@ from numpy import *
 from collections import namedtuple
 import matplotlib.path as mpath
 import matplotlib.pyplot as plt
-import cohen_sutherland_clipping as csclip
+import CohenSutherlandClipping as csclip
 import camera_model as cm
 from tf_utils import *
-
+import normal_estimation
 import mesh_structure as ms
 import mesh_optimization as mo
+import measurement_data as md
+import measurement_preprocessor as mp
 import scanline_rasterization as sl
+import iterative_mesh_learner as iml
 
 
 ### BEGIN CLASS -- Map ###
@@ -191,6 +194,8 @@ sensors = hstack([s1,s2])
 #     initialize modules
 ###----------------------------------------------------------------------------
 
+learner = iml.IterativeMeshLearner()
+preproc = mp.Preprocessor()
 data = []
 colors = 'ym'
 iii = 0
@@ -208,18 +213,38 @@ for s in sensors:
     print "Sensor " + str(fi+1)
     fig1.setActiveSensor(s)
 
-    # 1st: aquire measurements
+    # 1st: measure world
     s.measure(world)
 
     fig1.init('Measurement')
-    mesh.draw(fig1.ax1, 've', 'bbb')
+    learner.mesh.draw(fig1.ax1, 've', 'bbb')
     s.drawMeasurement(fig1.ax1)
-    fig1.save('img_out/mesh_')
+    fig1.save('img_out/mesh_learner_')
     print "saved measurement image..."
 
-    # 2nd: insert measurements
+    # 2nd: Preprocess new measurement (meshing + qslim)
+    preproc.compress(s.measurement, 0.0001)
+    learner.addMeasurements(md.convertMeshToMeasurementData(preproc.mesh, s))
 
-    # 3rd: simplify mesh
+    fig1.init('Measurement Compressed')
+    learner.mesh.draw(fig1.ax1, 've', 'bbb')
+    for d in learner.data: d.draw(fig1.ax1)
+    fig1.save('img_out/mesh_learner_')
+    print "saved compression image..."
+
+    # 3rd: Refine exsisting map
+    learner.extendMesh(s.measurement, s)
+
+    fig1.init('Mesh Refinement')
+    learner.mesh.draw(fig1.ax1, 've', 'bbb')
+    fig1.save('img_out/mesh_learner_')
+    print "saved refinement image..."
+
+    # 4th:  compensate and simplify refined parts of map using all measurements
+    learner.compensate(s)
+    learner.prepareSimplification()
+    learner.simpler.simplifyAndPrint(0.0001,fig1)
+    print "saved simplification image..."
 
     fi = fi+1
 

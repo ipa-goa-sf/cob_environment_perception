@@ -2,18 +2,43 @@
 
 from numpy import *
 import matplotlib.pyplot as plt
+import normal_estimation
 
+def computeNormal(x1,y1,x2,y2):
+    dx = x2 - x1
+    dy = y2 - y1
+    if dx == 0 and dy == 0: return (0,0)
+    l = 1./math.sqrt(dx**2+dy**2)
+    return (-dy*l, dx*l)
 
 class Vertex:
-    def __init__(self, p, q=zeros(4), S=identity(2), Q=zeros([3,3])):
-        """p: position, q: quaternion, S: scale, Q: quadric"""
-        self.p = mat(p)
-        self.q = array(q)
-        self.S = mat(S)
-        self.Q = mat(Q)
+    def __init__(self, x, y, q = zeros([3,3]), w = 0.0):
+        """ """
+        self.x = x
+        self.y = y
+        self.Q = mat(q) #w * q
+        self.P = mat(zeros([3,3]))
+        self.w = w
         self.e1 = None
         self.e2 = None
         self.flag = True
+
+    def addPlane(self, nx, ny, d, w = 1.0):
+        q = array([[nx],[ny],[d]])
+        Q = q.dot(q.T)
+        self.w = self.w + w
+        self.Q = self.Q + w*Q
+
+    def addOrientation(self, nx, ny, w = 1.0):
+        """ """
+        d = -(nx*self.x + ny*self.y)
+        self.addPlane(nx,ny,d,w)
+
+    def getPos(self):
+        return array([self.x,self.y])
+
+    def getPosAffine(self):
+        return array([self.x,self.y,1.])
 
     def isDead(self):
         return ( self.e1 is None and self.e2 is None )
@@ -21,15 +46,39 @@ class Vertex:
     def isBorder(self):
         return ( self.e1 is None or self.e2 is None )
 
+    def drawEllipse(self, ax, eps):
+        x = linspace(self.x - 5., self.x + 5., 21)
+        y = linspace(self.y - 5., self.y + 5., 21)
+        X,Y = meshgrid(x,y)
+        Z = zeros([len(x),len(y)])
+        Q = self.Q / self.w
+        for i in range(len(x)):
+            for j in range(len(y)):
+                v = array([X[i,j],Y[i,j],1.])
+                Z[i,j] = v.dot(Q).dot(v)
+
+        ax.contour(X,Y,Z,[eps], colors='k')
+
     def __repr__(self):
-        return "(%3.2f %3.2f)" % (self.p[0,0], self.p[1,0])
+        return "(%3.2f %3.2f)" % (self.x, self.y)
 
 class Edge:
     def __init__(self, v1, v2):
+        """ """
         self.v1 = v1
         self.v2 = v2
         self.vnew = v1
         self.dirty = False
+
+    def getNormal(self):
+        nx,ny = computeNormal(self.v1.x, self.v1.y, self.v2.x, self.v2.y)
+        return array([nx,ny])
+
+    def lengthSquared(self):
+        return (self.v1.x-self.v2.x)**2 + (self.v1.y-self.v2.y)**2
+
+    def length(self):
+        return sqrt(self.lengthSquared())
 
     def updateQuadrics(self):
         nx,ny = self.getNormal()

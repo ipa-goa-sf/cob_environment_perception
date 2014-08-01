@@ -2,10 +2,6 @@
 from numpy import *
 import matplotlib.pyplot as plt
 
-''' retrieves a 2D version of sensor covariance at v '''
-def cov2d(v,s):
-    return s.covariance(vstack([0,v]))[1:,1:]
-
 class SensorModel:
     def __init__(self):
         self.P = array([452.705, -611.068, 255.254, -7.295, 7.346])
