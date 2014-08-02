@@ -3,17 +3,24 @@
 from numpy import *
 import matplotlib.pyplot as plt
 
+from geometry import *
 
 class Vertex:
     def __init__(self, p, q=zeros(4), S=identity(2), Q=zeros([3,3])):
         """p: position, q: quaternion, S: scale, Q: quadric"""
-        self.p = mat(p)
+        if shape(p) != (2,1):
+            self.p = mat([p[0],p[1]]).T
+        else:
+            self.p = mat(p)
         self.q = array(q)
         self.S = mat(S)
         self.Q = mat(Q)
         self.e1 = None
         self.e2 = None
         self.flag = True
+
+    def x(self): return self.p[0,0]
+    def y(self): return self.p[1,0]
 
     def isDead(self):
         return ( self.e1 is None and self.e2 is None )
@@ -22,7 +29,7 @@ class Vertex:
         return ( self.e1 is None or self.e2 is None )
 
     def __repr__(self):
-        return "(%3.2f %3.2f)" % (self.p[0,0], self.p[1,0])
+        return "v(%3.2f %3.2f)" % (self.p[0,0], self.p[1,0])
 
 class Edge:
     def __init__(self, v1, v2):
@@ -31,30 +38,32 @@ class Edge:
         self.vnew = v1
         self.dirty = False
 
-    def updateQuadrics(self):
-        nx,ny = self.getNormal()
-        self.v1.addOrientation(nx,ny)
-        self.v2.addOrientation(nx,ny)
-        # add perpendicular penalty planes:
-        if self.v1.isBorder():
-            self.v1.addOrientation(-ny,nx,1000.)
-        if self.v2.isBorder():
-            self.v2.addOrientation(-ny,nx,1000.)
+    def computeQ(self):
+        """computes paramter for line distance function x.T*Q*x"""
+        C1 = aff(self.v1.p)*aff(self.v1.p).T
+        C2 = aff(self.v2.p)*aff(self.v2.p).T
+        N = .00001*identity(3)
+        Cinv = linalg.inv(C1 + C2 + N)
+        b = Cinv[:,-1]/linalg.norm(Cinv[:-1,-1])
+        return b*b.T
 
-    '''
-    weights plane parameters based on triangle face area
-    since it's 2D, area is actually the edge length
-    '''
-    def updateQuadricsAreaWeighted(self):
-        nx,ny = self.getNormal()
-        w = sqrt( (self.v1.x-self.v2.x)**2 + (self.v1.y-self.v2.y)**2 + 0.001)
-        self.v1.addOrientation(nx,ny,w)
-        self.v2.addOrientation(nx,ny,w)
-        # add perpendicular penalty planes:
+    def updateQ(self):
+        Q = self.computeQ()
+        self.v1.Q = self.v1.Q + Q
+        self.v2.Q = self.v2.Q + Q
+
         if self.v1.isBorder():
-            self.v1.addOrientation(-ny,nx,1000.)
+            self.v1.Q = self.v1.Q + 100.*identity(3)
         if self.v2.isBorder():
-            self.v2.addOrientation(-ny,nx,1000.)
+            self.v2.Q = self.v2.Q + 100.*identity(3)
+
+    def computeCost(self):
+        Q = self.v1.Q + self.v2.Q
+        Qinv = linalg.inv(Q)
+        v = Qinv[:-1,-1]/Qinv[-1,-1]
+        c = float(v.T*Q*v)
+        return v,c,Q
+
 
     def __repr__(self):
         return `self.v1.__repr__()` + "  <--->  "  + `self.v2.__repr__()`
@@ -65,9 +74,9 @@ class Mesh:
         self.V = []
         self.E = []
 
-    def add(self,x,y):
+    def add(self,p):
         """ """
-        v = Vertex(x,y)
+        v = Vertex(p)
         self.V.append(v)
         return v
 
@@ -96,13 +105,6 @@ class Mesh:
         self.V.remove(e.v2)
         self.E.remove(e)
 
-    def split(self, e):
-        """performs edge split operation"""
-        pass
-
-    def move(self, v):
-        """performs vertex move operation"""
-        pass
 
     def cleanup(self):
         """removes all edges marked as dirty and
@@ -126,119 +128,17 @@ class Mesh:
         self.V = tmp_v
         self.E = tmp_e
 
-    def load(self,x,y,nx,ny):
-        """creates mesh from measurements and normals"""
-        for i in range(len(x)):
-            if not math.isnan(x[i]): break
+    def getPoints(self):
+        return hstack([v.p for v in self.V]).T.A
 
-        pen=100.0
-        v1 = self.add(x[i],y[i])
-        v1.addOrientation(nx[i],ny[i],2.0)
-
-        if(i-1<0 or math.isnan(x[i-1])):
-            # add perpendicular plane
-            v1.addOrientation(-ny[i],nx[i],pen)
-            #print v1, v1.w
-        else:
-            # add normal of edge
-            nix,niy = computeNormal(x[i-1], x[i], y[i-1], y[i])
-            v1.addOrientation(nix,niy)
-
-        if(i+1>=len(x) or math.isnan(x[i+1])):
-            # add perpendicular plane
-            v1.addOrientation(-ny[i],nx[i],pen)
-            #print v1, v1.w
-        else:
-            # add normal of edge
-            nix,niy = computeNormal(x[i], x[i+1], y[i], y[i+1])
-            v1.addOrientation(nix,niy)
-
-
-        for j in range(i+1, len(x)):
-            v2 = self.add(x[j],y[j])
-            v2.addOrientation(nx[j],ny[j],2.0)
-
-            if(j-1<0 or math.isnan(x[j-1])):
-                # add perpendicular plane
-                v2.addOrientation(-ny[j],nx[j],pen)
-                #print v2, v2.w
-            else:
-                # add normal of edge
-                nix,niy = computeNormal(x[j-1], x[j], y[j-1], y[j])
-                v2.addOrientation(nix,niy)
-
-            if(j+1>=len(x) or math.isnan(x[j+1])):
-                # add perpendicular plane
-                v2.addOrientation(-ny[j],nx[j],pen)
-                #print v2, v2.w
-            else:
-                # add normal of edge
-                nix,niy = computeNormal(x[j], x[j+1], y[j], y[j+1])
-                v2.addOrientation(nix,niy)
-
-            e = self.connect(v1,v2)
-            v1 = v2
-
-
-    def draw(self, axis, options = 'ven', color = 'krb', ellipses = 0.0):
-        """ options: n=normals, e=edges, v=vertices """
+    def draw(self, axis, options = 've', color = 'kbr'):
+        """ options: e=edges, v=vertices """
         if 'v' in options:
-            x = [ v.x for v in self.V ]
-            y = [ v.y for v in self.V ]
-            axis.plot(x,y,'x'+color[0])
-
-        if 'n' in options:
-            for v in self.V:
-                x = [v.x, v.x + v.nx]
-                y = [v.y, v.y + v.ny]
-                axis.plot(x,y,color[1])
+            P = self.getPoints()
+            axis.plot(P[:,0],P[:,1],'x'+color[0])
 
         if 'e' in options:
             for e in self.E:
                 x = [e.v1.x, e.v2.x]
                 y = [e.v1.y, e.v2.y]
-                axis.plot(x,y,color[2])
-
-        if ellipses != 0.0 :
-            for v in self.V:
-                v.drawEllipse(axis,ellipses)
-
-    def test_load(self):
-        self.z = array([nan,         nan,         nan,  7.99356667,  7.82893667,
-                   7.57826583,  7.24122648,  7.00702245,  6.80268191,  6.62213153,
-                   6.39752627,  6.26145436,  6.0878814 ,  5.85069153,  5.75376865,
-                   5.62025108,  5.4464248 ,  5.26246435,  5.20527609,  5.06965995,
-                   4.93485073,  4.83511075,  4.74354981,  4.64631025,  4.53356859,
-                   4.45845244,  4.36818577,  4.24801165,  4.19271887,  4.12449824,
-                   4.01506922,  3.95092438,  3.90107743,  4.02811415,  4.13162295,
-                   4.30167701,  4.45022342,  4.61539678,  4.77774431,  4.98734557])
-        self.x = array([nan,         nan,         nan, -3.09644647, -2.85428159,
-                   -2.59021103, -2.31001192, -2.07563467, -1.86009645, -1.65983356,
-                   -1.45776035, -1.28407912, -1.10976296, -0.93320981, -0.78664303,
-                   -0.64032399, -0.49641576, -0.35973648, -0.2372181 , -0.11551886,
-                   0.        ,  0.11017435,  0.21617602,  0.31761684,  0.41321325,
-                   0.50795846,  0.59720908,  0.67757566,  0.76429283,  0.84583896,
-                   0.91488623,  0.99029698,  1.06669404,  1.1932163 ,  1.31802234,
-                   1.47029037,  1.62246692,  1.78785387,  1.95960917,  2.15922111])
-
-
-        ne = normal_estimation.Normals2d(9, len(self.z))
-        self.n = empty([len(self.z),2])
-        for i in range(len(self.z)):
-            self.n[i] = ne.computeNormal(self.z,self.x,i)
-
-        self.load(self.z,self.x,self.n[:,0],self.n[:,1])
-
-    def test_show(self):
-        fig = plt.figure(figsize=(1024.0/80, 768.0/80), dpi=80)
-        ax = fig.add_subplot(111)
-        ax.axis('equal')
-        self.draw(ax, 've')
-
-
-
-
-#m = Mesh()
-#m.test_load()
-#m.test_show()
-#plt.show()
+                axis.plot(x,y,color[1])
