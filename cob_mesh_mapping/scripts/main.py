@@ -11,8 +11,10 @@ import cohen_sutherland_clipping as csclip
 import camera_model as cm
 from tf_utils import *
 
-import mesh_structure as ms
-import mesh_optimization as mo
+import mesh_structure as mst
+import mesh_simplification as msi
+import mesh_refinement as mrf
+
 import scanline_rasterization as sl
 
 
@@ -134,8 +136,11 @@ class Figure:
             self.s.drawPosition(self.ax1)
 
         self.ax1.axis('equal')
-        self.ax1.set_xlim(-.5, 6.5)
-        self.ax1.set_ylim(-.5, 4.5)
+        #self.ax1.set_xlim(-.5, 6.5)
+        #self.ax1.set_ylim(-.5, 4.5)
+
+        #self.ax1.set_xlim(-.0, 4.5)
+        #self.ax1.set_ylim(-.5, 1.5)
         self.ax1.grid()
         plt.title(title)
 
@@ -194,32 +199,39 @@ sensors = hstack([s1,s2])
 data = []
 colors = 'ym'
 iii = 0
-#sensors = [sensors[1], sensors[10], sensors[12]]
+sensors = [sensors[1], sensors[10], sensors[12]]
 
 ###----------------------------------------------------------------------------
 #     visualize results
 ###----------------------------------------------------------------------------
 
 fig1 = Figure()
-fig1.setWorld(world)
+#fig1.setWorld(world)
+
+#mesh = mst.Mesh()
+simp = msi.Simplifier()
+refi = mrf.Refiner()
 
 fi = 0
 for s in sensors:
+    mesh = mst.Mesh()
     print "Sensor " + str(fi+1)
-    fig1.setActiveSensor(s)
+    #fig1.setActiveSensor(s)
 
     # 1st: aquire measurements
     s.measure(world)
 
     fig1.init('Measurement')
-    mesh.draw(fig1.ax1, 've', 'bbb')
-    s.drawMeasurement(fig1.ax1)
+
+    # 2nd: insert measurements
+    changed_edges = refi.insertMeasurements(mesh,s.measurement)
+    mesh.draw(fig1.ax1)
+    #s.drawMeasurement(fig1.ax1)
     fig1.save('img_out/mesh_')
     print "saved measurement image..."
 
-    # 2nd: insert measurements
-
     # 3rd: simplify mesh
+    simp.simplify(mesh,changed_edges,fig1)
 
     fi = fi+1
 

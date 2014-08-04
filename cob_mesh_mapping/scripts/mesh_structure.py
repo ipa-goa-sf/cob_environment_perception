@@ -61,12 +61,12 @@ class Edge:
         Q = self.v1.Q + self.v2.Q
         Qinv = linalg.inv(Q)
         v = Qinv[:-1,-1]/Qinv[-1,-1]
-        c = float(v.T*Q*v)
+        c = float(aff(v).T*Q*aff(v))
         return v,c,Q
 
 
     def __repr__(self):
-        return `self.v1.__repr__()` + "  <--->  "  + `self.v2.__repr__()`
+        return `self.v1.__repr__()` +"  <--->  "+ `self.v2.__repr__()`
 
 class Mesh:
     def __init__(self):
@@ -91,15 +91,40 @@ class Mesh:
     def collapse(self, e):
         """performs edge collapse operation"""
         vnew = e.vnew
+
+        p2 = e.v1.p; p3 = e.v2.p
+        q1 = zeros(4);     q2 = e.v1.q; q3 = e.v2.q; q4 = zeros(4)
+        S1 = zeros([2,2]); S2 = e.v1.S; S3 = e.v2.S; S4 = zeros([2,2])
+
+        a = zeros(4)
         if e.v1.e1 is not None:
+            q1 = e.v1.e1.v1.q
+            S1 = e.v1.e1.v1.S
+            a[:3] = a[:3] + barycentricWeights(e.v1.e1.v1.p,p2,p3,vnew.p)
             vnew.e1 = e.v1.e1
             vnew.e1.v2 = vnew
             vnew.e1.dirty = True
         if e.v2.e2 is not None:
+            q4 = e.v2.e2.v2.q
+            S4 = e.v2.e2.v2.S
+            a[1:] = a[1:] + barycentricWeights(p2,p3,e.v2.e2.v2.p,vnew.p)
             vnew.e2 = e.v2.e2
             vnew.e2.v1 = vnew
             vnew.e2.dirty = True
+        q = a[0]*q1 + a[1]*q2 + a[2]*q3 + a[3]*q3
+        S = a[0]*S1 + a[1]*S2 + a[2]*S3 + a[3]*S3
+        if a[0]!=0 and a[-1]!=0:
+            q = 0.5*q
+            S = 0.5*S
 
+        vnew.q = q/linalg.norm(q)
+        vnew.S = S
+        #print "\nV: ",len(self.V)
+        #for vi in self.V: print vi
+        #print "\nE: ",len(self.E)
+        #for ei in self.E: print ei
+        #print "insert: ",vnew
+        #print "delete: ",e
         self.V.append(vnew)
         self.V.remove(e.v1)
         self.V.remove(e.v2)
@@ -133,12 +158,12 @@ class Mesh:
 
     def draw(self, axis, options = 've', color = 'kbr'):
         """ options: e=edges, v=vertices """
-        if 'v' in options:
+        if 'v' in options and len(self.V)>0:
             P = self.getPoints()
             axis.plot(P[:,0],P[:,1],'x'+color[0])
 
-        if 'e' in options:
+        if 'e' in options and len(self.E)>0:
             for e in self.E:
-                x = [e.v1.x, e.v2.x]
-                y = [e.v1.y, e.v2.y]
+                x = [e.v1.x(), e.v2.x()]
+                y = [e.v1.y(), e.v2.y()]
                 axis.plot(x,y,color[1])

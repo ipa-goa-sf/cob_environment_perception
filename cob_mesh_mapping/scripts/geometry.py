@@ -57,7 +57,7 @@ def lineLineInters(p1,d1,p2,d2):
 def barycentricWeights(t1,t2,t3,p):
     """computes the barycentric weights of point p on triangle (t1,t2,t3)"""
     X = hstack([aff(t1),aff(t2),aff(t3)])
-    return linalg.inv(X)*aff(p)
+    return (linalg.inv(X)*aff(p)).T.A[0,:]
 
 #------------------------------------------------------------------------------
 #   Quaternion functions
