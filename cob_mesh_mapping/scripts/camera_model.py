@@ -22,53 +22,57 @@ class Camera2d:
         self.fov = fov
         self.f = f = far
         self.n = n = near
-        self.l = l = n * tan_fov_2
-        self.r = r = -l
-        self.frustum = array([[n,l,1], [f, f*tan_fov_2,1],
-                              [f,-f*tan_fov_2,1], [n,r,1]])
+        self.r = r = n * tan_fov_2
+        self.l = l = -r
+        self.frustum = array([[l,n,1], [-f*tan_fov_2,f,1],
+                              [f*tan_fov_2,f,1], [r,n,1]])
 
         # perspectiv projection matrix:
         depth = f - n # f > n
-        width = l - r # l > r
+        width = r - l # r > l
         # scale rectangle to unit cube
-        us = array([[2./depth,0,0],
-                    [0,2./width,0],
-                    [0,0,1.]])
+        us = mat([[2./width,0,0],
+                  [0,2./depth,0],
+                  [0,0,1.]])
         # translate rectangle center to origin
-        ut = array([[1,0,-(n+depth/2.)],
-                    [0,1,-(r+width/2.)],
-                    [0,0,1.]])
+        ut = mat([[1,0,-(l+width/2.)],
+                  [0,1,-(n+depth/2.)],
+                  [0,0,1.]])
         # translate back to position
-        txn1 = array([[1.,0,n],
-                      [0,1.,0],
-                      [0,0,1.]])
+        txn1 = mat([[1.,0,0],
+                    [0,1.,n],
+                    [0,0,1.]])
         # scale to original size
-        sxfn = array([[f/n,0,0],
-                      [0,1.,0],
-                      [0,0,1.]])
+        sxfn = mat([[1.,0,0],
+                    [0,f/n,0],
+                    [0,0,1.]])
         # project frustum to rectangle
-        pxn = array([ [1.,0,0],
-                      [0,1.,0],
-                      [1./n,0,1.]])
+        pxn = mat([ [1.,0,0],
+                    [0,1.,0],
+                    [0,1./n,1.]])
         # translate frustum to origin
-        txn2 = array([[1.,0,-n],
-                      [0,1.,0],
-                      [0,0,1.]])
+        txn2 = mat([[1.,0,0],
+                    [0,1.,-n],
+                    [0,0,1.]])
 
-        self.tf_to_unit_cube = us.dot(ut).dot(txn1).dot(sxfn).dot(pxn).dot(txn2)
+        self.tf_to_unit_cube = us*ut*txn1*sxfn*pxn*txn2
         self.tf_to_frustum = linalg.inv(self.tf_to_unit_cube)
 
     def setPose(self, position, orientation):
-        self.pos = array(position)
-        self.ori = array(orientation) / linalg.norm(orientation)
-
+        self.pos = mat(position).T
+        self.ori = mat(orientation).T / linalg.norm(orientation)
+        x = self.ori[1,0]
+        y = -self.ori[0,0]
         # rotation and translation matrix:
-        phi = math.atan2(orientation[1], orientation[0])
-        sign = math.copysign(1,phi)
-        phi = fabs(phi)
-        self.tf_to_world = array([[cos(phi), -sign * sin(phi), position[0]],
-                                  [sign * sin(phi), cos(phi), position[1]],
-                                  [0, 0, 1.]])
+        #phi = math.atan2(orientation[1], orientation[0])
+        #sign = math.copysign(1,phi)
+        #phi = fabs(phi)
+        #self.tf_to_world = mat([[cos(phi), -sign * sin(phi), position[0]],
+        #                        [sign * sin(phi), cos(phi), position[1]],
+        #                        [0, 0, 1.]])
+        self.tf_to_world = mat([[x,-y,self.pos[0]],
+                                [y,x,self.pos[1]],
+                                [0,0,1.]])
         self.tf_to_cam = linalg.inv(self.tf_to_world)
 
     ''' draw field of view to figure '''

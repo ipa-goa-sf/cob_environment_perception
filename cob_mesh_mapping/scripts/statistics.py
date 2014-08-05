@@ -35,9 +35,16 @@ def plotCov(mu, C, axis):
     """create contour plot at mu with covariance C"""
     xx1 = [mu[0,0]-0.2,mu[0,0]+0.2]
     xx2 = [mu[1,0]-0.2,mu[1,0]+0.2]
-    X1,X2 = meshgrid(linspace(xx1[0],xx1[1],100), linspace(xx2[0],xx2[1],100))
+    X1,X2 = meshgrid(linspace(xx1[0],xx1[1],50), linspace(xx2[0],xx2[1],50))
     f = zeros(shape(X1))
     Cinv = linalg.inv(C)
+    CinvDet = linalg.det(Cinv)
+    if CinvDet > 10**15:
+        print "The following covariance could not be plotted"
+        print "Prec:",Cinv
+        print "Det: ",CinvDet
+        return
+
     for yi in range(shape(X1)[0]):
         for xi in range(shape(X1)[1]):
             x = mat([X1[yi,xi],X2[yi,xi]]).T - mu

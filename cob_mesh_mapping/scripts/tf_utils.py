@@ -6,4 +6,4 @@ def make_affine(vectors):
     return hstack((vectors,ones([len(vectors),1])))
 
 def transform(tf, vectors):
-    return vstack(([tf.dot(v) for v in vectors]))
+    return vstack(([tf.A.dot(v) for v in vectors]))

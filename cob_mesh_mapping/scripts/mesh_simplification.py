@@ -5,6 +5,7 @@ from collections import namedtuple
 from matplotlib.collections import LineCollection
 import matplotlib.pyplot as plt
 import mesh_structure as ms
+from statistics import *
 
 
 class Heap:
@@ -51,24 +52,40 @@ class Simplifier:
             if(ho.c > .01): break
             if(fig is not None):
                 fig.init('Simplification')
-                self.plotHeapCost(fig.ax1)
+                #self.plotHeapCost(fig.ax1,ho, .0001, .015)
+                self.plotHeapCovariances(fig.ax1,ho)
                 mesh.draw(fig.ax1)
                 fig.save('img_out/simple_')
 
             mesh.collapse(ho.e)
             ho = self.heap.pop()
 
-    def plotHeapCost(self, ax):
+    def plotHeapCovariances(self, ax, hoc):
+        for ho in self.heap.h:
+            C = ho.e.v1.cov()
+            plotCov(ho.e.v1.p, 10.*C, ax)
+        C = hoc.e.v1.cov()
+        plotCov(hoc.e.v1.p, 10.*C, ax)
+
+    def plotHeapCost(self, ax, hoc, cmin, cmax):
         lines = []
         costs = []
+        lcmin = log10(cmin)
+        lcmax = log10(cmax)
+        print "plotting heap (size:",len(self.heap.h)+1,") costs..."
         for ho in self.heap.h:
             lines.append([(ho.e.v1.x(),ho.e.v1.y()), (ho.e.v2.x(),ho.e.v2.y())])
             if ho.e.dirty:
                 v,c,Q = ho.e.computeCost()
             else: c = ho.c
             costs.append(log10(c))
-        lc = LineCollection( lines, linewidths=(5.), cmap=plt.cm.jet )
+
+        lines.append([(hoc.e.v1.x(),hoc.e.v1.y()), (hoc.e.v2.x(),hoc.e.v2.y())])
+        costs.append(log10(hoc.c))
+        costs = [ min(max(ci,lcmin),lcmax) for ci in costs]
+        costs.append(lcmin)
+        costs.append(lcmax)
+
+        lc = LineCollection( lines, linewidths=(5.), cmap=plt.cm.jet)
         lc.set_array(array(costs))
-        #ax.set_xlim(..)
-        #ax.set_ylim(..)
         ax.add_collection(lc)

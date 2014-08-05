@@ -41,7 +41,7 @@ class Sensor(cm.Camera2d):
         # world -> camera -> orthographic projection space
         w = make_affine(world.coords)
         self.world = transform(self.tf_to_cam,w)
-        w = transform(self.tf_to_unit_cube.dot(self.tf_to_cam), w)
+        w = transform(self.tf_to_unit_cube*self.tf_to_cam, w)
 
         # clip lines and sort for intersection computation:
         c = csclip.Clipper()
@@ -71,7 +71,7 @@ class Sensor(cm.Camera2d):
                 if p01[-1] != 0: p1 = p01/p01[-1]
                 else: p1 = p01
 
-                scan.addEdge(p0,p1)
+                scan.addEdge(array([p0[1],p0[0]]),array([p1[1],p1[0]]))
 
             if pass1:
                 if p10[-1] != 0: p0 = p10/p10[-1]
@@ -79,9 +79,9 @@ class Sensor(cm.Camera2d):
                 if p11[-1] != 0: p1 = p11/p11[-1]
                 else: p1 = p11
 
-                scan.addEdge(p0,p1)
+                scan.addEdge(array([p0[1],p0[0]]),array([p1[1],p1[0]]))
 
-        x,y = scan.contour([-1.,1.,-1.,1.], [2./self.res,2./self.res])
+        y,x = scan.contour([-1.,1.,-1.,1.], [2./self.res,2./self.res])
         x = [ float('nan') if xi >= 1. else xi for xi in x ]
         x += random.randn(len(x)) * 0.005
 
@@ -89,6 +89,7 @@ class Sensor(cm.Camera2d):
         vst = vstack(zip(x,y,ones(len(x))))
 
         self.measurement = vstack(v/v[-1] for v in transform(back,vst))
+        self.data = vstack([self.measurement[:,1],self.measurement[:,0]]).T
 
     ''' shows measurements in separate plot '''
     def showMeasurement(self):
@@ -131,21 +132,21 @@ class Figure:
 
         if self.w is not None:
             self.w.draw(self.ax1)
+
         if self.s is not None:
             self.s.drawFrustum(self.ax1)
             self.s.drawPosition(self.ax1)
 
-        self.ax1.axis('equal')
-        #self.ax1.set_xlim(-.5, 6.5)
-        #self.ax1.set_ylim(-.5, 4.5)
-
-        #self.ax1.set_xlim(-.0, 4.5)
-        #self.ax1.set_ylim(-.5, 1.5)
-        self.ax1.grid()
         plt.title(title)
 
     ''' save current figure to file '''
     def save(self, filename, short=""):
+        self.ax1.axis('equal')
+        self.ax1.grid()
+        if self.w is not None:
+            self.ax1.set_xlim([-.5, 6.5])
+            self.ax1.set_ylim([-.5, 4.5])
+
         self.fig.savefig(filename+str(self.c).zfill(5)+short+'.png')
         self.c = self.c + 1
 
@@ -199,7 +200,8 @@ sensors = hstack([s1,s2])
 data = []
 colors = 'ym'
 iii = 0
-sensors = [sensors[1], sensors[10], sensors[12]]
+#sensors = [sensors[1], sensors[10], sensors[12]]
+sensors = [sensors[10]]
 
 ###----------------------------------------------------------------------------
 #     visualize results
@@ -208,13 +210,13 @@ sensors = [sensors[1], sensors[10], sensors[12]]
 fig1 = Figure()
 #fig1.setWorld(world)
 
-#mesh = mst.Mesh()
+mesh = mst.Mesh()
 simp = msi.Simplifier()
 refi = mrf.Refiner()
 
 fi = 0
 for s in sensors:
-    mesh = mst.Mesh()
+    #mesh = mst.Mesh()
     print "Sensor " + str(fi+1)
     #fig1.setActiveSensor(s)
 
@@ -224,14 +226,17 @@ for s in sensors:
     fig1.init('Measurement')
 
     # 2nd: insert measurements
-    changed_edges = refi.insertMeasurements(mesh,s.measurement)
-    mesh.draw(fig1.ax1)
+    changed_edges = refi.insertMeasurements(mesh,s.measurement,s.tf_to_world)
+    #mesh.draw(fig1.ax1)
     #s.drawMeasurement(fig1.ax1)
-    fig1.save('img_out/mesh_')
-    print "saved measurement image..."
+    #print "saving measurement image..."
+
+    #fig1.save('img_out/mesh_')
+
 
     # 3rd: simplify mesh
-    simp.simplify(mesh,changed_edges,fig1)
+    #simp.simplify(mesh,changed_edges,fig1)
+    simp.simplify(mesh,changed_edges)
 
     fi = fi+1
 

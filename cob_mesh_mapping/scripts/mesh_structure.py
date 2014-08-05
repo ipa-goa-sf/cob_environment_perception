@@ -9,7 +9,7 @@ class Vertex:
     def __init__(self, p, q=zeros(4), S=identity(2), Q=zeros([3,3])):
         """p: position, q: quaternion, S: scale, Q: quadric"""
         if shape(p) != (2,1):
-            self.p = mat([p[0],p[1]]).T
+            self.p = mat([float(p[0]),float(p[1])]).T
         else:
             self.p = mat(p)
         self.q = array(q)
@@ -21,6 +21,10 @@ class Vertex:
 
     def x(self): return self.p[0,0]
     def y(self): return self.p[1,0]
+
+    def cov(self):
+        R = quat2mat(self.q)
+        return R*self.S*R.T
 
     def isDead(self):
         return ( self.e1 is None and self.e2 is None )
