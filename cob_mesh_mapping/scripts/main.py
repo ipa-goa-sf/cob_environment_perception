@@ -200,15 +200,15 @@ sensors = hstack([s1,s2])
 data = []
 colors = 'ym'
 iii = 0
-#sensors = [sensors[1], sensors[10], sensors[12]]
-sensors = [sensors[10]]
+sensors = [sensors[10], sensors[11], sensors[12]]
+#sensors = [sensors[10]]
 
 ###----------------------------------------------------------------------------
 #     visualize results
 ###----------------------------------------------------------------------------
 
 fig1 = Figure()
-#fig1.setWorld(world)
+fig1.setWorld(world)
 
 mesh = mst.Mesh()
 simp = msi.Simplifier()
@@ -218,25 +218,32 @@ fi = 0
 for s in sensors:
     #mesh = mst.Mesh()
     print "Sensor " + str(fi+1)
-    #fig1.setActiveSensor(s)
+    fig1.setActiveSensor(s)
 
     # 1st: aquire measurements
     s.measure(world)
 
     fig1.init('Measurement')
+    s.drawMeasurement(fig1.ax1)
+    mesh.draw(fig1.ax1)
+    print "saving measurement image..."
+    fig1.save('img_out/mesh_')
 
     # 2nd: insert measurements
     changed_edges = refi.insertMeasurements(mesh,s.measurement,s.tf_to_world)
-    #mesh.draw(fig1.ax1)
-    #s.drawMeasurement(fig1.ax1)
-    #print "saving measurement image..."
-
-    #fig1.save('img_out/mesh_')
+    fig1.init('Meshed')
+    mesh.draw(fig1.ax1)
+    print "saving meshed image..."
+    fig1.save('img_out/mesh_')
 
 
     # 3rd: simplify mesh
     #simp.simplify(mesh,changed_edges,fig1)
     simp.simplify(mesh,changed_edges)
+    fig1.init('Simplified')
+    mesh.draw(fig1.ax1)
+    print "saving simplified image..."
+    fig1.save('img_out/mesh_')
 
     fi = fi+1
 

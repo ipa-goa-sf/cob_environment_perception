@@ -35,6 +35,9 @@ class Vertex:
     def __repr__(self):
         return "v(%3.2f %3.2f)" % (self.p[0,0], self.p[1,0])
 
+    def __hash__(self): return id(self)
+    def __eq__(self,other): return id(self) == id(other)
+
 class Edge:
     def __init__(self, v1, v2):
         self.v1 = v1
@@ -71,6 +74,10 @@ class Edge:
 
     def __repr__(self):
         return `self.v1.__repr__()` +"  <--->  "+ `self.v2.__repr__()`
+
+
+    def __hash__(self): return id(self)
+    def __eq__(self,other): return id(self) == id(other)
 
 class Mesh:
     def __init__(self):
