@@ -49,7 +49,7 @@ class Simplifier:
                 self.heap.push(c,ho.e)
                 ho = self.heap.pop()
 
-            if(ho.c > .01): break
+            if(ho.c > .001): break
             if(fig is not None):
                 fig.init('Simplification')
                 #self.plotHeapCost(fig.ax1,ho, .0001, .015)

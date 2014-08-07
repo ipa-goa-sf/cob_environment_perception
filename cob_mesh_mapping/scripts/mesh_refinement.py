@@ -15,7 +15,7 @@ class Refiner:
     def __init__(self):
         self.s = sm.SensorModel()
 
-    def insertMeasurements(self, mesh, data, tf):
+    def insertMeasurements(self, mesh, data, tf, fig=None):
         """
         mesh: mesh structure to extend
         data: original measurement data in homogenious coords (narray)
@@ -32,6 +32,12 @@ class Refiner:
         clusters = defaultdict(list) # maps edge to data points (1:n)
         loose = [] # stores unassigned data points
         el = [] # stores new/updated edges
+
+        # for debugging:
+        cov_estimate = []
+        mu_estimate = []
+        cov_comb = []
+        mu_comb = []
 
         # analyse data and compare to mesh
         for i in range(nd):
@@ -60,18 +66,24 @@ class Refiner:
                     # chi-square test if new point lies within both
                     # confidence limits (there might be some possibilities
                     # to combining these equations)
-                    chi_p = (mu-p).T * linalg.inv(Cp) * (mu-p)
-                    chi_i = (mu-m[i]).T * linalg.inv(cov[i]) * (mu-m[i])
+                    chi_p = (mu-p).T * linalg.inv(Cp) * (mu-p) # prediction
+                    chi_d = (mu-m[i]).T * linalg.inv(cov[i]) * (mu-m[i]) # data
                     chi_test = (m[i]-p).T * linalg.inv(Cp+cov[i]) * (m[i]-p)
                     #print p.T,mu.T,m[i].T
                     #print "point: ",m[i].T, p.T
-                    #print "p:",chi_p," m:",chi_i," both:",chi_test
+                    #print "p:",chi_p," d:",chi_d," both:",chi_test
                     #print Cp
                     #print cov[i]
                     #print Cp
-                    print chi_test, p.T, mu.T, m[i].T
-                    if chi_test < chi_min:
-                        chi_min = chi_test#chi_p + chi_i
+                    #print chi_test, p.T, mu.T, m[i].T
+
+                    cov_estimate.append(Cp)
+                    mu_estimate.append(p)
+                    cov_comb.append(C)
+                    mu_comb.append(mu)
+
+                    if chi_d < chi_min:
+                        chi_min = chi_d
                         intersection = (b, mu, C)
                         e_min = e
 
@@ -81,6 +93,25 @@ class Refiner:
                 ref[i] = e_min
             else:
                 loose.append(i)
+
+        if fig is not None:
+            fig.init('Data Covariance')
+            for i in range(nd):
+                if math.isnan(data[i,1]): continue
+                plotCov(m[i], cov[i], fig.ax1)
+            fig.save('img_out/covD_')
+
+            fig.init('Estimated Covariance')
+            for i in range(len(cov_estimate)):
+                plotCov(mu_estimate[i], cov_estimate[i], fig.ax1)
+            for v in mesh.V:
+                plotCov(v.p, v.cov(), fig.ax1)
+            fig.save('img_out/covE_')
+
+            fig.init('Combined Covariance')
+            for i in range(len(cov_comb)):
+                plotCov(mu_comb[i], cov_comb[i], fig.ax1)
+            fig.save('img_out/covG_')
 
         # create new mesh for loose points:
         v1 = None
@@ -110,6 +141,7 @@ class Refiner:
             else: # large step
                 # there was an edge inbetween
                 if (ref[i-1] is not None
+                    and ref[i-1].v2.isBorder()
                     and not math.isnan(data[i-1,1])
                     and distanceCheck(data[i-1,1],data[i,1])):
                     # connect to existing edge
@@ -127,7 +159,7 @@ class Refiner:
                     v1 = None
             # end large step
             # in either case check if next point belongs to cluster
-            if i<nd-1 and ref[i+1] is not None:
+            if i<nd-1 and ref[i+1] is not None and ref[i+1].v1.isBorder():
                 if (distanceCheck(data[i,1],data[i+1,1])
                     and not math.isnan(data[i+1,1])):
                     # if next point is also valid
@@ -144,47 +176,6 @@ class Refiner:
                     v1 = None
             # end forward check
             last_i = i
-
-        '''
-        for i in loose[s:]:
-            if v1 is None: # check if we have to create new v1
-                if (not math.isnan(data[i-1,1])
-                    and distanceCheck(data[i-1,1],data[i,1])):
-                    if ref[i-1] is None:
-                        # left neighbor does not belong to cluster
-                        v1 = mesh.add(m[i-1])
-                        RC,v1.S = decomposeCov(cov[i-1])
-                        v1.q = mat2quat(RC)
-                    else:
-                        # left neighbor belongs to cluster
-                        v1 = ref[i-1].v2
-
-                    v2 = mesh.add(m[i])
-                    RC,v2.S = decomposeCov(cov[i])
-                    v2.q = mat2quat(RC)
-
-                    e = mesh.connect(v1,v2)
-                    e.dirty = True
-                    el.append(e)
-                    v1 = v2
-            elif last_i == i-1: # v1 is valid neighbor
-                if distanceCheck(data[i-1,1],data[i,1]):
-                    v2 = mesh.add(m[i])
-                    RC,v2.S = decomposeCov(cov[i])
-                    v2.q = mat2quat(RC)
-
-                    e = mesh.connect(v1,v2)
-                    e.dirty = True
-                    el.append(e)
-                    v1 = v2
-                else:
-                    v1 = None
-            else:
-                v1 = None
-            if ref[i+1] is not None:
-
-            last_i = i
-        '''
 
         # update intersected edges
         for e in clusters.keys():
@@ -206,7 +197,22 @@ class Refiner:
             el.append(enew)
             mesh.E.remove(e)
 
+        vb = []
+        for v in mesh.V:
+            if v.isBorder():
+                vb.append(v)
+        for i in range(len(vb)):
+            for j in range(i+1,len(vb)):
+                if linalg.norm(vb[i].p - vb[j].p) < 0.1:
+                    e = mesh.connect(vb[i],vb[j])
+                    e.dirty = True
+                    el.append(e)
+                    break
+
         for e in el:
-            e.updateQ()
+            e.beta = e.computeBeta()
+        for v in mesh.V:
+            if v.flag:
+                v.computeQ()
 
         return el

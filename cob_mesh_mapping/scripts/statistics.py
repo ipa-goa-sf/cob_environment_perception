@@ -22,9 +22,13 @@ def productGaussian(mu1, C1, mu2, C2):
     mu = (C1+C2)^-1(C1*mu2+C2*mu1)
     C = C1*(C1+C2)^-1*C2
     """
-    denom = linalg.inv(C1+C2)
-    mu = denom*(C1*mu2+C2*mu1)
-    C = C1*denom*C2
+    Cn = C1 + mat(.0001*identity(2))
+    K = Cn*linalg.inv(Cn+C2)
+    mu = mu1 + K*(mu2-mu1)
+    C = Cn - K*Cn
+    #denom = linalg.inv(C1+C2)
+    #mu = denom*(C1*mu2+C2*mu1)
+    #C = C1*denom*C2
     return mu,C
 
 
@@ -48,9 +52,9 @@ def plotCov(mu, C, axis):
     for yi in range(shape(X1)[0]):
         for xi in range(shape(X1)[1]):
             x = mat([X1[yi,xi],X2[yi,xi]]).T - mu
-            f[yi,xi] = exp(-0.5*x.T * Cinv * x)
+            f[yi,xi] = x.T * Cinv * x
 
-    axis.contour(X1,X2,f,5)
+    axis.contour(X1,X2,f,[2.3,4.61,6.18,9.21,11.8])
 
 def plotEig(mu, C, axis):
     """show eigen directions (not values) of covariance C at mu"""

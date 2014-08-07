@@ -26,6 +26,17 @@ class Vertex:
         R = quat2mat(self.q)
         return R*self.S*R.T
 
+    def computeQ(self):
+        if self.e1 is not None:
+            self.Q = self.e1.beta * self.e1.beta.T
+        else:
+            self.Q = 100.*identity(3)
+        if self.e2 is not None:
+            self.Q = self.Q + self.e2.beta*self.e2.beta.T
+        else:
+            self.Q = self.Q + 100.*identity(3)
+        self.flag = False
+
     def isDead(self):
         return ( self.e1 is None and self.e2 is None )
 
@@ -44,16 +55,18 @@ class Edge:
         self.v2 = v2
         self.vnew = v1
         self.dirty = False
+        self.beta = self.computeBeta()
 
-    def computeQ(self):
-        """computes paramter for line distance function x.T*Q*x"""
+    def computeBeta(self):
+        """computes paramter for line distance function x.T*(b*b.T)*x"""
         C1 = aff(self.v1.p)*aff(self.v1.p).T
         C2 = aff(self.v2.p)*aff(self.v2.p).T
         N = .00001*identity(3)
         Cinv = linalg.inv(C1 + C2 + N)
-        b = Cinv[:,-1]/linalg.norm(Cinv[:-1,-1])
-        return b*b.T
-
+        self.v1.flag = True
+        self.v2.flag = True
+        return Cinv[:,-1]/linalg.norm(Cinv[:-1,-1])
+    '''
     def updateQ(self):
         Q = self.computeQ()
         self.v1.Q = self.v1.Q + Q
@@ -63,7 +76,7 @@ class Edge:
             self.v1.Q = self.v1.Q + 100.*identity(3)
         if self.v2.isBorder():
             self.v2.Q = self.v2.Q + 100.*identity(3)
-
+    '''
     def computeCost(self):
         Q = self.v1.Q + self.v2.Q
         Qinv = linalg.inv(Q)
@@ -109,16 +122,20 @@ class Mesh:
 
         a = zeros(4)
         if e.v1.e1 is not None:
+            p1 = e.v1.e1.v1.p
             q1 = e.v1.e1.v1.q
             S1 = e.v1.e1.v1.S
-            a[:3] = a[:3] + barycentricWeights(e.v1.e1.v1.p,p2,p3,vnew.p)
+            a1 = barycentricWeights(p1,p2,p3,vnew.p)
+            a[:3] = a[:3] + a1
             vnew.e1 = e.v1.e1
             vnew.e1.v2 = vnew
             vnew.e1.dirty = True
         if e.v2.e2 is not None:
+            p4 = e.v2.e2.v2.p
             q4 = e.v2.e2.v2.q
             S4 = e.v2.e2.v2.S
-            a[1:] = a[1:] + barycentricWeights(p2,p3,e.v2.e2.v2.p,vnew.p)
+            a2 = barycentricWeights(p2,p3,p4,vnew.p)
+            a[1:] = a[1:] + a2
             vnew.e2 = e.v2.e2
             vnew.e2.v1 = vnew
             vnew.e2.dirty = True
@@ -128,8 +145,30 @@ class Mesh:
             q = 0.5*q
             S = 0.5*S
 
+        if S[0,0] < 0 or S[1,1] < 0:
+            print "Trace:",S.trace()
+            print "Sum a1:",a1.sum()
+            print "Sum a2:",a1.sum()
+            print "a1:",a1.T
+            print "a2:",a2.T
+            print "p1:",p1.T
+            print "p2:",p2.T
+            print "p3:",p3.T
+            print "p4:",p4.T
+            print "p5:",vnew.p.T
+            print "l1:",linalg.norm(p1-p2)
+            print "l2:",linalg.norm(p2-p3)
+            print "l3:",linalg.norm(p3-p4)
+            print "S1:\n",S1
+            print "S2:\n",S2
+            print "S3:\n",S3
+            print "S4:\n",S4
+            print "S:\n",S
+
         vnew.q = q/linalg.norm(q)
         vnew.S = S
+
+
         #print "\nV: ",len(self.V)
         #for vi in self.V: print vi
         #print "\nE: ",len(self.E)
@@ -172,6 +211,9 @@ class Mesh:
         if 'v' in options and len(self.V)>0:
             P = self.getPoints()
             axis.plot(P[:,0],P[:,1],'x'+color[0])
+            for v in self.V:
+                if v.isBorder():
+                    axis.plot(v.x(),v.y(),'xm')
 
         if 'e' in options and len(self.E)>0:
             for e in self.E:

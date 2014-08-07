@@ -82,8 +82,8 @@ class Sensor(cm.Camera2d):
                 scan.addEdge(array([p0[1],p0[0]]),array([p1[1],p1[0]]))
 
         y,x = scan.contour([-1.,1.,-1.,1.], [2./self.res,2./self.res])
-        x = [ float('nan') if xi >= 1. else xi for xi in x ]
-        x += random.randn(len(x)) * 0.005
+        y = [ float('nan') if yi >= 1. else yi for yi in y ]
+        y += random.randn(len(y)) * 0.005
 
         back = self.tf_to_frustum
         vst = vstack(zip(x,y,ones(len(x))))
@@ -116,6 +116,8 @@ class Figure:
         self.c = 0
         self.w = None
         self.s = None
+        self.show_world = True
+        self.show_sensor = True
 
     ''' set the current world '''
     def setWorld(self, world):
@@ -126,14 +128,16 @@ class Figure:
         self.s = sensor
 
     ''' set up basic figure '''
-    def init(self, title):
+    def init(self, title, world=True, sensor=True):
+        self.show_world = world
+        self.show_sensor = sensor
         self.fig.clf()
         self.ax1 = self.fig.add_subplot(111)
 
-        if self.w is not None:
+        if self.w is not None and self.show_world:
             self.w.draw(self.ax1)
 
-        if self.s is not None:
+        if self.s is not None and self.show_sensor:
             self.s.drawFrustum(self.ax1)
             self.s.drawPosition(self.ax1)
 
@@ -143,7 +147,9 @@ class Figure:
     def save(self, filename, short=""):
         self.ax1.axis('equal')
         self.ax1.grid()
-        if self.w is not None:
+        if self.w is not None and self.show_world:
+            #self.ax1.set_xlim([1., 5.])
+            #self.ax1.set_ylim([1., 4.1])
             self.ax1.set_xlim([-.5, 6.5])
             self.ax1.set_ylim([-.5, 4.5])
 
@@ -200,8 +206,9 @@ sensors = hstack([s1,s2])
 data = []
 colors = 'ym'
 iii = 0
-sensors = [sensors[10], sensors[11], sensors[12]]
+#sensors = [sensors[10], sensors[11], sensors[12]]
 #sensors = [sensors[10]]
+#sensors = sensors[:10]
 
 ###----------------------------------------------------------------------------
 #     visualize results
@@ -230,7 +237,7 @@ for s in sensors:
     fig1.save('img_out/mesh_')
 
     # 2nd: insert measurements
-    changed_edges = refi.insertMeasurements(mesh,s.measurement,s.tf_to_world)
+    changed_edges = refi.insertMeasurements(mesh,s.measurement,s.tf_to_world,fig1)
     fig1.init('Meshed')
     mesh.draw(fig1.ax1)
     print "saving meshed image..."
