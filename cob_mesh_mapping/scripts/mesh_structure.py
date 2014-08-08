@@ -44,7 +44,7 @@ class Vertex:
         return ( self.e1 is None or self.e2 is None )
 
     def __repr__(self):
-        return "v(%3.2f %3.2f)" % (self.p[0,0], self.p[1,0])
+        return str(id(self))+": v(%3.2f %3.2f)" % (self.p[0,0], self.p[1,0])
 
     def __hash__(self): return id(self)
     def __eq__(self,other): return id(self) == id(other)
@@ -65,7 +65,13 @@ class Edge:
         Cinv = linalg.inv(C1 + C2 + N)
         self.v1.flag = True
         self.v2.flag = True
-        return Cinv[:,-1]/linalg.norm(Cinv[:-1,-1])
+        beta = Cinv[:,-1]/linalg.norm(Cinv[:-1,-1]) # normalize in x,y
+        w = 2000.*(self.v1.S.trace() + self.v2.S.trace())
+        #print w
+        a = 1.
+        beta = (1.-a)*beta/w + a*beta
+        #print beta.T
+        return beta
     '''
     def updateQ(self):
         Q = self.computeQ()
@@ -86,7 +92,7 @@ class Edge:
 
 
     def __repr__(self):
-        return `self.v1.__repr__()` +"  <--->  "+ `self.v2.__repr__()`
+        return str(id(self))+`self.v1.__repr__()` +"  <--->  "+ `self.v2.__repr__()`
 
 
     def __hash__(self): return id(self)
@@ -107,6 +113,10 @@ class Mesh:
     def connect(self,v1,v2):
         """ """
         e = Edge(v1,v2)
+        #if v1.e1 is None: v1.e1 = e
+        #else: v1.e2 = e
+        #if v2.e1 is None: v2.e1 = e
+        #else: v2.e2 = e
         v1.e2 = e
         v2.e1 = e
         self.E.append(e)
@@ -173,8 +183,8 @@ class Mesh:
         #for vi in self.V: print vi
         #print "\nE: ",len(self.E)
         #for ei in self.E: print ei
-        #print "insert: ",vnew
-        #print "delete: ",e
+        print "insert: ",vnew
+        print "delete: ",e
         self.V.append(vnew)
         self.V.remove(e.v1)
         self.V.remove(e.v2)

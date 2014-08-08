@@ -237,7 +237,7 @@ for s in sensors:
     fig1.save('img_out/mesh_')
 
     # 2nd: insert measurements
-    changed_edges = refi.insertMeasurements(mesh,s.measurement,s.tf_to_world,fig1)
+    changed_edges = refi.insertMeasurements(mesh,s.measurement,s.tf_to_world)
     fig1.init('Meshed')
     mesh.draw(fig1.ax1)
     print "saving meshed image..."

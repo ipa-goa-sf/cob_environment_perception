@@ -52,8 +52,10 @@ class Refiner:
             e_min = None
             d1 = m[i] - t
             for e in mesh.E:
-                # missing: backface culling, free space clearing
+                # missing: free space clearing
                 d2 = e.v2.p - e.v1.p
+                # backface culling
+                #if mat([-d2[1,0],d2[0,0]])*d1 < .001: continue
                 a,b = lineLineInters(t,d1,e.v1.p,d2)
                 a = float(a)
                 b = float(b)
@@ -127,6 +129,8 @@ class Refiner:
                         v1 = mesh.add(m[i-1])
                         RC,v1.S = decomposeCov(cov[i-1])
                         v1.q = mat2quat(RC)
+                    #else:
+                        #print "v1: ",v1.e1, v1.e2
                     # create v2 and connect
                     v2 = mesh.add(m[i])
                     RC,v2.S = decomposeCov(cov[i])
@@ -146,6 +150,7 @@ class Refiner:
                     and distanceCheck(data[i-1,1],data[i,1])):
                     # connect to existing edge
                     v1 = ref[i-1].v2
+                    #print "v1: ",v1.e1, v1.e2
                     # create v2 and connect
                     v2 = mesh.add(m[i])
                     RC,v2.S = decomposeCov(cov[i])
@@ -168,23 +173,29 @@ class Refiner:
                         v1 = mesh.add(m[i])
                         RC,v1.S = decomposeCov(cov[i])
                         v1.q = mat2quat(RC)
+                    #else:
+                    #    print "v1: ",v1.e1, v1.e2
                     # connect to existing edge
                     v2 = ref[i+1].v1
+                    #print "v2: ",v2.e1, v2.e2
                     e = mesh.connect(v1,v2)
                     e.dirty = True
                     el.append(e)
                     v1 = None
             # end forward check
             last_i = i
-
+        #print clusters
         # update intersected edges
         for e in clusters.keys():
             # get a list of b values of current edge and sort
+            #print "Intersections: ",len(clusters[e])
             lb = [i[0] for i in clusters[e]]
             idx = argsort(lb)
             v1 = e.v1
+            #print e
             for i in idx:
                 v2 = mesh.add(clusters[e][i][1])
+                #print v2
                 RC,v2.S = decomposeCov(clusters[e][i][2])
                 v2.q = mat2quat(RC)
 
@@ -194,6 +205,7 @@ class Refiner:
                 v1 = v2
             enew = mesh.connect(v1,e.v2)
             enew.dirty = True
+            #print enew
             el.append(enew)
             mesh.E.remove(e)
 

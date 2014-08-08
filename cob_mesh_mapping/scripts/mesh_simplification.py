@@ -33,6 +33,8 @@ class Simplifier:
             self.heap.push(0,e)
 
     def simplify(self,mesh,edges=[],fig=None):
+        #max_cost = .001
+        max_cost = .001
         if len(edges)==0:
             self.initHeap(mesh.E)
         else:
@@ -49,11 +51,11 @@ class Simplifier:
                 self.heap.push(c,ho.e)
                 ho = self.heap.pop()
 
-            if(ho.c > .001): break
+            if(ho.c > max_cost): break
             if(fig is not None):
                 fig.init('Simplification')
-                #self.plotHeapCost(fig.ax1,ho, .0001, .015)
-                self.plotHeapCovariances(fig.ax1,ho)
+                self.plotHeapCost(fig.ax1,ho, .0001, max_cost)
+                #self.plotHeapCovariances(fig.ax1,ho)
                 mesh.draw(fig.ax1)
                 fig.save('img_out/simple_')
 
@@ -86,6 +88,6 @@ class Simplifier:
         costs.append(lcmin)
         costs.append(lcmax)
 
-        lc = LineCollection( lines, linewidths=(5.), cmap=plt.cm.jet)
+        lc = LineCollection( lines, linewidths=(3.), cmap=plt.cm.jet)
         lc.set_array(array(costs))
         ax.add_collection(lc)
