@@ -61,6 +61,8 @@ class Simplifier:
 
             mesh.collapse(ho.e)
             ho = self.heap.pop()
+        for e in mesh.E:
+            e.dirty = False
 
     def plotHeapCovariances(self, ax, hoc):
         for ho in self.heap.h:

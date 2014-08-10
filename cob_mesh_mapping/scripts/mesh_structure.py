@@ -43,6 +43,10 @@ class Vertex:
     def isBorder(self):
         return ( self.e1 is None or self.e2 is None )
 
+    def hasDirtyNeighbors(self):
+        return ( self.e1 is not None and self.e1.dirty and
+                 self.e2 is not None and self.e2.dirty )
+
     def __repr__(self):
         return str(id(self))+": v(%3.2f %3.2f)" % (self.p[0,0], self.p[1,0])
 

@@ -32,7 +32,7 @@ class Refiner:
         clusters = defaultdict(list) # maps edge to data points (1:n)
         loose = [] # stores unassigned data points
         el = [] # stores new/updated edges
-
+        vl = [vi for vi in mesh.V] # copy of old vertices
         # for debugging:
         cov_estimate = []
         mu_estimate = []
@@ -210,6 +210,23 @@ class Refiner:
             mesh.E.remove(e)
 
         vb = []
+        for v in vl:
+            if v.hasDirtyNeighbors():
+                v1 = v.e1.v1
+                v2 = v.e2.v2
+                d1 = v.p - t
+                d2 = v2.p - v1.p
+                a,b = lineLineInters(t,d1,v1.p,d2)
+                a = float(a)
+                b = float(b)
+                p = a*d1+t
+                Rp = quat2mat(slerp(v1.q, v2.q, b))
+                Sp = (1.-b)*v1.S + b*v2.S
+                Cp = Rp*Sp*Rp.T
+                v.p,C = productGaussian(p,Cp,v.p,v.cov())
+                Rv,v.S = decomposeCov(C)
+                v.q = mat2quat(Rv)
+
         for v in mesh.V:
             if v.isBorder():
                 vb.append(v)
