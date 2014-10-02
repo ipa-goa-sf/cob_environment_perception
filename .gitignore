@@ -61,3 +61,4 @@ cob_3d_segmentation/msg/ObjectWatchActionResult.msg
 cob_3d_segmentation/msg/ObjectWatchFeedback.msg
 cob_3d_segmentation/msg/ObjectWatchGoal.msg
 cob_3d_segmentation/msg/ObjectWatchResult.msg
+libopenmesh/include
