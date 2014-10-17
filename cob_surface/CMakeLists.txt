@@ -105,6 +105,7 @@ include_directories(
 ## Declare a cpp executable
 add_executable(test_openmesh common/src/test_openmesh.cpp)
 add_executable(test_sweepline common/src/test_sweepline.cpp)
+#add_executable(test_stl_set common/src/test_stl_set.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
