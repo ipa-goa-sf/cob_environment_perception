@@ -63,7 +63,7 @@
 #ifndef __SENSOR_MODEL_H__
 #define __SENSOR_MODEL_H__
 
-#include "cob_3d_mapping_common/polygon.h"
+//#include "cob_3d_mapping_common/polygon.h"
 #include <list>
 #include <algorithm>
 
