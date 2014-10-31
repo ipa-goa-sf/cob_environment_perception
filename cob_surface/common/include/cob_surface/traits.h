@@ -21,7 +21,7 @@
  * \author
  *  Supervised by: Richard Bormann, email:richard.bormann@ipa.fhg.de
  *
- * \date Date of creation: 09/2014
+ * \date Date of creation: 10/2014
  *
  * \brief
  * Description:
@@ -60,78 +60,53 @@
  *
  ****************************************************************/
 
-#ifndef COB_SURFACE_MERGE_H
-#define COB_SURFACE_MERGE_H
+#ifndef COB_SURFACE_TRAITS_H
+#define COB_SURFACE_TRAITS_H
 
-#include <unordered_map>
-
-#include <cob_surface/typedefs.h>
+#include "cob_surface/surface.h"
 
 namespace cob_surface
 {
-  template<typename Traits, typename Policy>
-  class Merge
+  template<typename SurfaceT>
+  struct SweepLineTraits
   {
-  public:
-    typedef typename Traits::SurfaceT SurfaceT;
+    typedef float ValueT;
 
-    typedef SweepLine::SweepLineProcess<SweepLineTraits<SurfaceT>,SweepLinePolicy>
-    SweepLineProcess;
-
-    typedef std::unordered_map<SurfaceT::VertexHandle,typename SweepLineProcess::Event>
-    VertexEventMap;
-
-    typedef std::list<std::pair<SurfaceT*,SurfaceT::FaceHandle> > ActiveTrianglesBucket;
-
-    typedef std::unordered_map<SweepLine::DataId,ActiveTrianglesBucket> ActiveTrianglesMap;
-
-  public:
-    /*
-      merges sensor surface into map surface
-    */
-    void sensorIntoMap(
-      const Mat4& tf_sensor,
-      const Mat4& tf_map,
-      const SurfaceT& sf_sensor,
-      SurfaceT& sf_map);
-
-    void initialize(const SurfaceT& sf_sensor, SurfaceT& sf_map);
-
-    void preprocess();
-
-    void updateInsertEvent(const SurfaceT& sf, const SurfaceT::VertexHandle& vh,
-                           const SweepLine::DataId& d_id, VertexEventMap& map)
+    /* Definition of operations for the active triangle list.
+     *
+     * Every surface edge can have either one or two adjacent triangles.
+     * When the active edge list of the current sweepline changes, we
+     * also adjust the list of currently active triangles.
+     * When the sweepline intersects an edge, a triangle can either be
+     * turned active or inactive.
+     */
+    enum OperationType
     {
-      if (map.count(vh)) map[vh].to_insert.push_back(d_id);
-      else
-      {
-        typename SweepLineProcess::Event ev = {sf.point(vh), {d_id}, {}, false};
-        map.insert(std::make_pair(vh, ev));
-      }
-    }
+      ENABLE_SINGLE = 1, // turn on f1
+      ENABLE_DOUBLE = 2, // turn on f1 and f2
+      DISABLE_SINGLE = 3, // turn off f1
+      DISABLE_DOUBLE = 4, // turn off f1 and f2
+      SWITCH = 5 // turn off f1, turn on f2
+    };
 
-    void updateRemoveEvent(const SurfaceT& sf, const SurfaceT::VertexHandle& vh,
-                           const SweepLine::DataId& d_id, VertexEventMap& map)
+    struct DataT
     {
-      if (map.count(vh)) map[vh].to_remove.push_back(d_id);
-      else
-      {
-        typename SweepLineProcess::Event ev = {sf.point(vh), {}, {d_id}, false};
-        map.insert(std::make_pair(vh, ev));
-      }
-    }
+      SurfaceT* sf;
+      typename SurfaceT::VertexHandle v1;
+      typename SurfaceT::VertexHandle v2;
+      OperationType op;
+      typename SurfaceT::FaceHandle f1;
+      typename SurfaceT::FaceHandle f2;
+    };
 
-    void transformActiveTrianglesBucket(const DataT& data, ActiveTrianglesBucket& bucket);
-
-    void updateVertex(const ActiveTriangleBucket& bucket, DataT& data);
-    
-
-  private:
-    SweepLineProcess sl_;
-    
-
+    typedef typename SurfaceT::Point StateT;
   };
-}
 
+  struct MergeTraits
+  {
+    typedef Surface SurfaceT;
+  };
+
+}
 
 #endif

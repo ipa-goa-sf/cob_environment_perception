@@ -90,15 +90,17 @@ namespace SweepLine
    *
    * performce a sweepline process over assigned data
    *
-   * template T - data type
-   * template PolicyT - policies for compare and fake data
-   * template StateT - state type
+   * template Traits - defines DataT and StateT
+   * template Policy - policies for compare and fake data
    *
    */
-  template<typename T, typename StateT, typename PolicyT>
+  template<typename Traits, typename Policy>
   class SweepLineProcess
   {
   public:
+    typedef typename Traits::DataT DataT;
+    typedef typename Traits::StateT StateT;
+
     struct Event
     {
       StateT state;
@@ -109,20 +111,20 @@ namespace SweepLine
 
     friend inline const bool operator< (const Event& lhs, const Event& rhs)
     {
-      return lhs.state < rhs.state;
+      return Policy::stateCompare(lhs.state, rhs.state)
     }
 
-    // delegates the compare operation of BST to PolicyT class
+    // delegates the compare operation of BST to Policy class
     struct DelegateCompare
     {
-      DelegateCompare(SweepLineProcess<T,StateT,PolicyT>* sl) : p(sl) { }
+      DelegateCompare(SweepLineProcess<Traits,Policy>* sl) : p(sl) { }
       bool operator() (NodeId a, NodeId b)
       {
-        return PolicyT::compare(p->getData(p->getDataId(a)),
-                                p->getData(p->getDataId(b)), p->state_);
+        return Policy::dataCompare(p->getData(p->getDataId(a)),
+                                   p->getData(p->getDataId(b)), p->state_);
       }
 
-      SweepLineProcess<T,StateT,PolicyT>* p; ///< pointer to parent
+      SweepLineProcess<Traits,Policy>* p; ///< pointer to parent
     };
 
     typedef typename std::set<NodeId,DelegateCompare>::iterator NodeIter;
@@ -131,7 +133,27 @@ namespace SweepLine
     SweepLineProcess() : bst_(DelegateCompare(this)) { }
 
     /** 
-     * Copies all data to the SweepLineProcess and returns a list of
+     * Clear assigned data and event_schedule. Allocate space for new data.
+     * 
+     * @param n_data - number of new data elements
+     */
+    void reset(unsigned int n_data);
+
+    /** 
+     * Add a new data element.
+     * 
+     * @param data - the new element to add
+     * 
+     * @return DataId of the added element
+     */
+    inline DataId addData(const DataT& data)
+    {
+      data_[next_id_] = data;
+      out_data_ids_[next_id_] = next_id_++;
+    }
+
+    /** 
+     * Copy all data to the SweepLineProcess and returns a list of
      * data ids. Data can be accessed via getData()
      * 
      * @param first - iterator to the first data element
@@ -146,16 +168,14 @@ namespace SweepLine
                     std::vector<DataId>& out_data_ids);
 
     /** 
-     * Returns data by DataId
+     * Copy event to event schedule
      * 
-     * @param id - query DataId
-     * 
-     * @return associated data T
+     * @param event - the event to add
      */
-    inline T& getData(const DataId& id) { return data_[id]; }
+    inline void addEvent(const Event& event) {event_schedule_.push(event);}
 
     /**
-     * Adds event for data start point and/or data end point
+     * Add event for data start point and/or data end point
      *
      * @param event_state - state when event needs to be processed
      * @param data_to_insert - list of DataIds to insert at the event
@@ -165,13 +185,11 @@ namespace SweepLine
                          const std::vector<DataId>& data_to_insert,
                          const std::vector<DataId>& data_to_remove)
     {
-      event_schedule_.push(
-        Event({event_state, data_to_insert, data_to_remove, false}));
-      //std::cout << "New Event: " << event_state << std::endl;
+      event_schedule_.push(Event({event_state,data_to_insert,data_to_remove,false}));
     }
 
     /**
-     * Creates event to swap data_a with data_b on sweep line
+     * Create event to swap data_a with data_b on sweep line
      *
      * @param event_state - state when event needs to be processed
      * @param data_a - left DataId
@@ -180,10 +198,7 @@ namespace SweepLine
     inline void addSwapEvent(const StateT& event_state,
                              DataId data_a, DataId data_b)
     {
-      event_schedule_.push(
-        Event({event_state, {data_a}, {data_b}, true})
-        );
-      //std::cout << "New SwapEvent: " << event_state << std::endl;
+      event_schedule_.push(Event({event_state, {data_a}, {data_b}, true}));
     }
 
     /**
@@ -192,6 +207,49 @@ namespace SweepLine
      * @return False if all events have been processed
      */
     bool nextEvent();
+
+    /** 
+     * Returns data by DataId
+     * 
+     * @param id - query DataId
+     * @return associated data T
+     */
+    inline DataT& getData(const DataId& id) { return data_[id]; }
+
+    /** 
+     * Get the event that was currently processed
+     * 
+     * @return the event
+     */
+    inline Event& getCurrentEvent() { return current_event_; }
+
+    /** 
+     * Get the DataId left to the currently processed event
+     * 
+     * @param id - out
+     * 
+     * @return - False if there is nothing to the left (DataId invalid)
+     */
+    inline bool getLeftData(DataId& id)
+    {
+      if (!left_neighbor_.first) return false;
+      id = getDataId(left_neighbor_.second);
+      return true;
+    }
+
+    /** 
+     * Get the DataId right to the currently processed event
+     * 
+     * @param id - out
+     * 
+     * @return - False if there is nothing to the right (DataId invalid)
+     */
+    inline bool getRightData(DataId& id)
+    {
+      if (!right_neighbor_.first) return false;
+      id = getDataId(right_neighbor_.second);
+      return true;
+    }
 
   private:
     /** 
@@ -273,7 +331,7 @@ namespace SweepLine
     /// queue of events left to process
     std::priority_queue<Event> event_schedule_;
     ///
-    std::vector<T> data_;
+    std::vector<DataT> data_;
     /// maintains data to bst node association
     std::vector<NodeIter> data2node_;
     /// maintaints bst node to data association
@@ -281,9 +339,13 @@ namespace SweepLine
     /// keeps track of data adjacency to avoid creation of multiple events
     std::unordered_set<DataPairId> adjacent_data_;
 
+    NodeId locate_node_id_;
+    DataId next_id_;
     /// current state
     StateT state_;
-    NodeId locate_node_id_;
+    Event current_event_;
+    std::pair<bool,NodeIter> left_neighbor_;
+    std::pair<bool,NodeIter> right_neighbor_;
   };
 }
 

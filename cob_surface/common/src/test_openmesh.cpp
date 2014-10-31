@@ -71,6 +71,9 @@
 struct SurfaceTraits : public OpenMesh::DefaultTraits
 {
   typedef Eigen::Vector3f Point;
+  VertexAttributes(OpenMesh::Attributes::Status);
+  FaceAttributes(OpenMesh::Attributes::Status);
+  EdgeAttributes(OpenMesh::Attributes::Status);
 };
 
 namespace OpenMesh
@@ -85,40 +88,89 @@ namespace OpenMesh
   };
 }
 
+template<typename MeshT>
+inline void deleteFace(MeshT& mesh, const typename MeshT::FaceHandle& fh)
+{
+  if(!mesh.status(fh).deleted()) mesh.delete_face(fh,false);
+}
+
 typedef OpenMesh::TriMesh_ArrayKernelT<SurfaceTraits> Surface;
 
 int main(int argc, char **argv)
 {
   Surface sf;
-  Surface::VertexHandle vh[4];
-  vh[0] = sf.add_vertex(Surface::Point(0.,0.,0.));
-  vh[1] = sf.add_vertex(Surface::Point(1.,0.,0.));
-  vh[2] = sf.add_vertex(Surface::Point(0.,1.,0.));
-  vh[3] = sf.add_vertex(Surface::Point(1.,1.,1.));
+  Surface::VertexHandle vh1[10];
+  Surface::FaceHandle fh[13];
+  std::cout << "Create Map" << std::endl;
+  vh1[0] = sf.add_vertex(Surface::Point(0.,1.,0.));
+  vh1[1] = sf.add_vertex(Surface::Point(4.,1.,0.));
+  vh1[2] = sf.add_vertex(Surface::Point(2.,3.,0.));
+  vh1[3] = sf.add_vertex(Surface::Point(6.,3.,0.));
+  fh[0] = sf.add_face(vh1[0], vh1[1], vh1[2]);
+  fh[1] = sf.add_face(vh1[1], vh1[3], vh1[2]);
 
-  std::vector<Surface::VertexHandle> fvh;
-  fvh.push_back(vh[2]);
-  fvh.push_back(vh[1]);
-  fvh.push_back(vh[0]);
-  sf.add_face(fvh);
+  std::cout << "add 4" << std::endl;
+  deleteFace(sf,fh[1]);
+  vh1[4] = sf.add_vertex(Surface::Point(4.,2.,0.));
+  fh[2] = sf.add_face(vh1[4],vh1[3],vh1[2]);
 
-  fvh.clear();
-  fvh.push_back(vh[2]);
-  fvh.push_back(vh[3]);
-  fvh.push_back(vh[1]);
-  sf.add_face(fvh);
+  std::cout << "add 5" << std::endl;
+  deleteFace(sf,fh[0]);
+  deleteFace(sf,fh[1]);
+  vh1[5] = sf.add_vertex(Surface::Point(3.5,1.5,0.));
+  fh[3] = sf.add_face(vh1[5],vh1[4],vh1[2]);
 
-  fvh.clear();
-  fvh.push_back(vh[1]);
-  fvh.push_back(vh[3]);
-  fvh.push_back(vh[0]);
-  sf.add_face(fvh);
+  std::cout << "add 6" << std::endl;
+  deleteFace(sf,fh[1]);
+  vh1[6] = sf.add_vertex(Surface::Point(4.5,1.5,0.));
+  fh[4] = sf.add_face(vh1[6],vh1[3],vh1[4]);
+  fh[5] = sf.add_face(vh1[6],vh1[4],vh1[5]);
 
-  fvh.clear();
-  fvh.push_back(vh[3]);
-  fvh.push_back(vh[2]);
-  fvh.push_back(vh[0]);
-  sf.add_face(fvh);
+  std::cout << "update 0" << std::endl;
+  deleteFace(sf,fh[0]);
+  fh[6] = sf.add_face(vh1[0],vh1[5],vh1[2]);
+
+  std::cout << "add 7" << std::endl;
+  deleteFace(sf,fh[0]);
+  vh1[7] = sf.add_vertex(Surface::Point(3.,1.,0.));
+  fh[7] = sf.add_face(vh1[7],vh1[5],vh1[0]);
+
+  std::cout << "update 1" << std::endl;
+  deleteFace(sf,fh[0]);
+  deleteFace(sf,fh[1]);
+  fh[8] = sf.add_face(vh1[1],vh1[6],vh1[5]);
+  fh[9] = sf.add_face(vh1[1],vh1[5],vh1[7]);
+
+  std::cout << "add 8" << std::endl;
+  vh1[8] = sf.add_vertex(Surface::Point(2.,0.,0.));
+  fh[10] = sf.add_face(vh1[8],vh1[1],vh1[7]);
+
+  std::cout << "add 9" << std::endl;
+  vh1[9] = sf.add_vertex(Surface::Point(6.,0.,0.));
+  fh[11] = sf.add_face(vh1[9],vh1[6],vh1[1]);
+  fh[12] = sf.add_face(vh1[9],vh1[1],vh1[8]);
+
+  sf.garbage_collection();
+
+  Surface::HalfedgeIter he_it;
+  for(he_it=sf.halfedges_begin(); he_it!=sf.halfedges_end(); ++he_it)
+  {
+    //std::cout << "Edge: " << *he_it << std::endl;
+    //std::cout << "v0: " << sf.to_vertex_handle(*he_it) << std::endl;
+    //std::cout << "v1: " << sf.from_vertex_handle(*he_it) << std::endl;
+  }
+
+  Surface::EdgeIter e_it;
+  for(e_it=sf.edges_begin(); e_it!=sf.edges_end(); ++e_it)
+  {
+    std::cout << "Edge: " << *e_it << std::endl;
+    Surface::VertexHandle v1 = sf.to_vertex_handle(sf.halfedge_handle(*e_it,0));
+    Surface::VertexHandle v2 = sf.to_vertex_handle(sf.halfedge_handle(*e_it,1));
+    std::cout << "v1: " << sf.point(v1).transpose() << std::endl;
+    std::cout << "v2: " << sf.point(v2).transpose() << std::endl;
+    std::cout << "v1 " << (sf.point(v1) > sf.point(v2) ? ">" : "<") << " v2" << std::endl;
+  }
+  
 
   //OpenMesh::IO::write_mesh(sf, "/home/goa-sf/Desktop/test.ply");
   std::cout << "Hallo" << std::endl;

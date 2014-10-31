@@ -21,7 +21,7 @@
  * \author
  *  Supervised by: Richard Bormann, email:richard.bormann@ipa.fhg.de
  *
- * \date Date of creation: 09/2014
+ * \date Date of creation: 10/2014
  *
  * \brief
  * Description:
@@ -60,78 +60,76 @@
  *
  ****************************************************************/
 
-#ifndef COB_SURFACE_MERGE_H
-#define COB_SURFACE_MERGE_H
+#ifndef COB_SURFACE_POLICIES_H
+#define COB_SURFACE_POLICIES_H
 
-#include <unordered_map>
+/* This header defines all policies necessary for using
+ * the surface class with several algorithms
+ */
 
-#include <cob_surface/typedefs.h>
+#include "cob_surface/surface.h"
 
 namespace cob_surface
 {
-  template<typename Traits, typename Policy>
-  class Merge
+  // define policy for surface conversion
+  struct ConversionPolicy
   {
-  public:
-    typedef typename Traits::SurfaceT SurfaceT;
+    typedef Surface::VertexHandle VHandle;
+    typedef Surface::FaceHandle FHandle;
 
-    typedef SweepLine::SweepLineProcess<SweepLineTraits<SurfaceT>,SweepLinePolicy>
-    SweepLineProcess;
-
-    typedef std::unordered_map<SurfaceT::VertexHandle,typename SweepLineProcess::Event>
-    VertexEventMap;
-
-    typedef std::list<std::pair<SurfaceT*,SurfaceT::FaceHandle> > ActiveTrianglesBucket;
-
-    typedef std::unordered_map<SweepLine::DataId,ActiveTrianglesBucket> ActiveTrianglesMap;
-
-  public:
-    /*
-      merges sensor surface into map surface
-    */
-    void sensorIntoMap(
-      const Mat4& tf_sensor,
-      const Mat4& tf_map,
-      const SurfaceT& sf_sensor,
-      SurfaceT& sf_map);
-
-    void initialize(const SurfaceT& sf_sensor, SurfaceT& sf_map);
-
-    void preprocess();
-
-    void updateInsertEvent(const SurfaceT& sf, const SurfaceT::VertexHandle& vh,
-                           const SweepLine::DataId& d_id, VertexEventMap& map)
+    template<typename PointT>
+    static inline VHandle addVertex(
+      const PointT& p, unsigned int idx, Surface& sf)
     {
-      if (map.count(vh)) map[vh].to_insert.push_back(d_id);
-      else
-      {
-        typename SweepLineProcess::Event ev = {sf.point(vh), {d_id}, {}, false};
-        map.insert(std::make_pair(vh, ev));
-      }
+      return sf.add_vertex(Surface::Point(p.getVector3fMap()));
     }
 
-    void updateRemoveEvent(const SurfaceT& sf, const SurfaceT::VertexHandle& vh,
-                           const SweepLine::DataId& d_id, VertexEventMap& map)
+    static inline FHandle addFace(
+      const VHandle& v1, const VHandle& v2, const VHandle& v3, Surface& sf)
     {
-      if (map.count(vh)) map[vh].to_remove.push_back(d_id);
-      else
-      {
-        typename SweepLineProcess::Event ev = {sf.point(vh), {}, {d_id}, false};
-        map.insert(std::make_pair(vh, ev));
-      }
+      return sf.add_face(v1,v2,v3);
+    }
+  };
+
+  // define policy for using SweepLineProcess on surface class
+  struct SweepLinePolicy
+  {
+    /** 
+     * Determines the order between two states a and b
+     * 
+     * @param a - State a
+     * @param b - State b
+     * 
+     * @return returns true if a comes before b
+     */
+    template<typename StateT>
+    inline static bool stateCompare(const StateT& a, const StateT& b)
+    {
+      if (a[0] != b[0]) return a[0] < b[0];
+      if (a[1] != b[1]) return a[1] < b[1];
+      else return a[2] < b[2];
     }
 
-    void transformActiveTrianglesBucket(const DataT& data, ActiveTrianglesBucket& bucket);
+    /** 
+     * Determines the order between data a and b at a given state
+     * 
+     * @param a - Data a
+     * @param b - Data b
+     * @param state - the current state at which to evaluate
+     * 
+     * @return returns true if a comes before b
+     */
+    template<typename DataT, typename StateT>
+    static bool dataCompare(const DataT& a, const DataT& b, const StateT& state);
 
-    void updateVertex(const ActiveTriangleBucket& bucket, DataT& data);
-    
+    template<typename DataT, typename StateT>
+    static void dataForLocalization(const StateT& state, DataT& out);
 
-  private:
-    SweepLineProcess sl_;
-    
-
+    template<typename DataT, typename StateT>
+    static bool swapCheck(const DataT& a, const DataT& b, StateT& state);
   };
 }
 
+//#include "cob_surface/impl/policies.hpp"
 
 #endif

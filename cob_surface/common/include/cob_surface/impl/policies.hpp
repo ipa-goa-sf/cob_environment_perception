@@ -21,7 +21,7 @@
  * \author
  *  Supervised by: Richard Bormann, email:richard.bormann@ipa.fhg.de
  *
- * \date Date of creation: 09/2014
+ * \date Date of creation: 10/2014
  *
  * \brief
  * Description:
@@ -60,78 +60,29 @@
  *
  ****************************************************************/
 
-#ifndef COB_SURFACE_MERGE_H
-#define COB_SURFACE_MERGE_H
+#ifndef COB_SURFACE_POLICIES_HPP
+#define COB_SURFACE_POLICIES_HPP
 
-#include <unordered_map>
-
-#include <cob_surface/typedefs.h>
-
-namespace cob_surface
+template<typename DataT, typename StateT>
+static bool cob_surface::SweepLinePolicy::compare(
+  const DataT& a, const DataT& b, const StateT& state)
 {
-  template<typename Traits, typename Policy>
-  class Merge
-  {
-  public:
-    typedef typename Traits::SurfaceT SurfaceT;
 
-    typedef SweepLine::SweepLineProcess<SweepLineTraits<SurfaceT>,SweepLinePolicy>
-    SweepLineProcess;
-
-    typedef std::unordered_map<SurfaceT::VertexHandle,typename SweepLineProcess::Event>
-    VertexEventMap;
-
-    typedef std::list<std::pair<SurfaceT*,SurfaceT::FaceHandle> > ActiveTrianglesBucket;
-
-    typedef std::unordered_map<SweepLine::DataId,ActiveTrianglesBucket> ActiveTrianglesMap;
-
-  public:
-    /*
-      merges sensor surface into map surface
-    */
-    void sensorIntoMap(
-      const Mat4& tf_sensor,
-      const Mat4& tf_map,
-      const SurfaceT& sf_sensor,
-      SurfaceT& sf_map);
-
-    void initialize(const SurfaceT& sf_sensor, SurfaceT& sf_map);
-
-    void preprocess();
-
-    void updateInsertEvent(const SurfaceT& sf, const SurfaceT::VertexHandle& vh,
-                           const SweepLine::DataId& d_id, VertexEventMap& map)
-    {
-      if (map.count(vh)) map[vh].to_insert.push_back(d_id);
-      else
-      {
-        typename SweepLineProcess::Event ev = {sf.point(vh), {d_id}, {}, false};
-        map.insert(std::make_pair(vh, ev));
-      }
-    }
-
-    void updateRemoveEvent(const SurfaceT& sf, const SurfaceT::VertexHandle& vh,
-                           const SweepLine::DataId& d_id, VertexEventMap& map)
-    {
-      if (map.count(vh)) map[vh].to_remove.push_back(d_id);
-      else
-      {
-        typename SweepLineProcess::Event ev = {sf.point(vh), {}, {d_id}, false};
-        map.insert(std::make_pair(vh, ev));
-      }
-    }
-
-    void transformActiveTrianglesBucket(const DataT& data, ActiveTrianglesBucket& bucket);
-
-    void updateVertex(const ActiveTriangleBucket& bucket, DataT& data);
-    
-
-  private:
-    SweepLineProcess sl_;
-    
-
-  };
 }
 
+
+template<typename DataT, typename StateT>
+static void cob_surface::SweepLinePolicy::dataForLocalization(
+  const StateT& state, DataT& out)
+{
+
+}
+
+template<typename DataT, typename StateT>
+static bool cob_surface::SweepLinePolicy::swapCheck(
+  const DataT& a, const DataT& b, StateT& state)
+{
+
+}
 
 #endif

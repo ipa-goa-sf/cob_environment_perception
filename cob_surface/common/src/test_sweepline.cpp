@@ -91,8 +91,6 @@ std::ostream &operator<<(std::ostream &os, std::pair<double,double> const &p) {
  * Data Dependent Definitions:
  ******************************************************************************/
 
-typedef std::pair<Vertex,Vertex> Segment;
-
 struct LineTraits
 {
   typedef std::pair<Vertex,Vertex> DataT;
@@ -103,8 +101,8 @@ struct LineTraits
 struct LinePolicy
 {
   // returns true if segment a comes before b at sweepline state
-  static bool compare(const Segment& a, const Segment& b,
-                      const std::pair<double,double>& state)
+  template<typename DataT, typename StateT>
+  static bool compare(const DataT& a, const DataT& b, const StateT& state)
   {
     double y = state.first;
     //std::cout << "State:" << y << std::endl;
@@ -131,14 +129,15 @@ struct LinePolicy
   }
 
   // create a fake data object for state localization (vertical line)
-  static Segment dataForLocalization(const std::pair<double,double>& state)
+  template<typename DataT, typename StateT>
+  static void dataForLocalization(const StateT& state, DataT& out)
   {
-    return Segment({state.second,state.first},{state.second,state.first-1.f});
+    out = DataT({state.second,state.first},{state.second,state.first-1.f});
   }
 
   //http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
-  static bool swapCheck(const Segment& a, const Segment& b,
-                        std::pair<double,double>& state)
+  template<typename DataT, typename StateT>
+  static bool swapCheck(const DataT& a, const DataT& b, StateT& state)
   {
     double sa_x = a.first.x - a.second.x;
     double sa_y = a.first.y - a.second.y;
@@ -177,6 +176,7 @@ int main(int argc, char **argv)
   std::uniform_real_distribution<double> dist(-1.,1.);
   auto rng = std::bind(dist,gen); // use rng() to generate random number
 
+  typedef typename LineTraits::DataT Segment;
   std::vector<Segment> segments;
   
   auto start =  std::chrono::system_clock::now();
@@ -203,7 +203,7 @@ int main(int argc, char **argv)
   start =  std::chrono::system_clock::now();
 
   std::vector<SweepLine::DataId> d_ids;
-  SweepLine::SweepLineProcess<Segment,std::pair<double,double>, LinePolicy> sl;
+  SweepLine::SweepLineProcess<LineTraits, LinePolicy> sl;
   sl.addAllData(segments.begin(), segments.end(), segments.size(), d_ids);
   for (int i=0; i<d_ids.size(); ++i)
   {

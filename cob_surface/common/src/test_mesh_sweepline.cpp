@@ -68,8 +68,8 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/surface/organized_fast_mesh.h>
-#include <pcl/PolygonMesh.h>
+//#include <pcl/surface/organized_fast_mesh.h>
+//#include <pcl/PolygonMesh.h>
 
 
 #include <OpenMesh/Core/IO/MeshIO.hh>
@@ -78,9 +78,11 @@
 //#include "cob_3d_mapping_common/sensor_model.h"
 #include "cob_surface/conversion.h"
 #include "cob_surface/sensors.h"
+#include "cob_surface/surface.h"
+#include "cob_surface/policies.h"
 
-std::string file_in_;
-std::string file_out_;
+std::string file_in1_;
+std::string file_in2_;
 
 int readOptions(int argc, char** argv)
 {
@@ -88,8 +90,8 @@ int readOptions(int argc, char** argv)
   options_description options("Options");
   options.add_options()
     ("help,h", "produce help message")
-    ("in,i", value<std::string>(&file_in_), "input folder with data points")
-    ("out,o", value<std::string>(&file_out_), "out file with data points")
+    ("in1", value<std::string>(&file_in1_), "input folder with data points")
+    ("in2", value<std::string>(&file_in2_), "out file with data points")
     ;
 
   positional_options_description p_opt;
@@ -113,14 +115,17 @@ int main(int argc, char** argv)
   if(readOptions(argc, argv)<0) return 0;
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr
-    input(new pcl::PointCloud<pcl::PointXYZRGB>);
+    in1(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr
+    in2(new pcl::PointCloud<pcl::PointXYZRGB>);
 
   pcl::PCDReader r;
-  r.read(file_in_, *input);
+  r.read(file_in1_, *in1);
+  r.read(file_in2_, *in2);
 
   system_clock::time_point start, end;
   system_clock::duration elapsed;
-  
+/*  // PCL PointCloud to mesh conversion:
   start = system_clock::now();
   pcl::PolygonMesh pcl_mesh;
   pcl::OrganizedFastMesh <pcl::PointXYZRGB> ofm;
@@ -131,19 +136,24 @@ int main(int argc, char** argv)
   end = system_clock::now();
   elapsed = duration_cast<microseconds>(end-start);
   std::cout << "OrganizedFastMesh took " << elapsed.count()/1000000. <<" sec"<<std::endl;
-
-  typedef OpenMesh::TriMesh_ArrayKernelT<> MeshT;
-  MeshT mesh;
+*/
+  cob_surface::Surface sf1, sf2;
 
   start = system_clock::now();
-  cob_surface::Conversion<cob_surface::Kinect>
-    ::pointCloud2Mesh<pcl::PointXYZRGB,MeshT>(input,mesh);
+  typedef cob_surface::Conversion<cob_surface::Kinect> ConversionT;
+  ConversionT::pointCloud2Mesh<pcl::PointXYZRGB, cob_surface::Surface,
+                               cob_surface::ConversionPolicy>(in1,sf1);
+  ConversionT::pointCloud2Mesh<pcl::PointXYZRGB, cob_surface::Surface,
+                               cob_surface::ConversionPolicy>(in2,sf2);
+
+  //cob_surface::Merge<cob_surface::Surface>::sensorIntoMap(
+  //  Eigen::Matrix4f::Identity(),Eigen::Matrix4f::Identity(),sf1,sf2);
 
   end = system_clock::now();
   elapsed = duration_cast<microseconds>(end-start);
   std::cout << "My Meshing took " << elapsed.count()/1000000. <<" sec"<<std::endl;
 
 
-  OpenMesh::IO::write_mesh(mesh,file_out_);
+  //OpenMesh::IO::write_mesh(mesh,file_out_);
   return 0;
 }

@@ -77,7 +77,8 @@ namespace OpenMesh
 
 namespace cob_surface
 {
-  struct SurfaceTraits : public OpenMesh::DefaultTraits
+  // defines surface data structure
+  struct DataStructure : public OpenMesh::DefaultTraits
   {
     typedef Eigen::Vector3f Point;
     //typedef OpenMesh::Vec3f  Normal;
@@ -97,11 +98,29 @@ namespace cob_surface
     //VertexAttributes(0);
     HalfedgeAttributes(OpenMesh::Attributes::PrevHalfedge);
     //EdgeAttributes(0);
-    //FaceAttributes(0);
+    FaceAttributes(OpenMesh::Attributes::Status);
   };
 
-  typedef OpenMesh::TriMesh_ArrayKernelT<SurfaceTraits> Surface;
+  // define surface data type
+  typedef OpenMesh::TriMesh_ArrayKernelT<DataStructure> Surface;
 
+  /** 
+   * Returns first or second vertex handle of an edge handle
+   * 
+   * @param sf - the reference surface
+   * @param eh - the edge handle
+   * @param i - 0 or 1
+   * 
+   * @return vertex handle associated with the edge handle
+   */
+  template<typename SurfaceT>
+  inline typename SurfaceT::VertexHandle getVertexHandle(
+    const SurfaceT& sf,
+    const typename SurfaceT::EdgeHandle& eh,
+    unsigned int i)
+  {
+    return sf.to_vertex_handle(sf.halfedge_handle(eh, i));
+  }
 }
 
 

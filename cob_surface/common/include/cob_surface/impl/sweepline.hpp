@@ -63,9 +63,29 @@
 #ifndef COB_SURFACE_SWEEPLINE_HPP
 #define COB_SURFACE_SWEEPLINE_HPP
 
-template<typename T, typename StateT, typename PolicyT>
+template<typename Traits, typename Policy>
+void SweepLine::SweepLineProcess<Traits,Policy>::reset(unsigned int n_data)
+{
+  next_id_ = 0;
+
+  bst_.clear();
+  event_schedule_ = std::priority_queue<Event>();
+  data_.clear();
+  data_.resize(n_data+1); // last place is for localization data
+  data2node_.clear();
+  data2node_.resize(n_data);
+  node2data_.clear();
+  node2data_.resize(n_data+1); // keep a place for localization data
+  locate_node_id_ = NodeId(n_data);
+  node2data_[locate_node_id_] = DataId(n_data);
+  adjacent_data_.clear();
+  out_data_ids.clear();
+  out_data_ids.resize(n_data);
+}
+
+template<typename Traits, typename Policy>
 template<typename InputIterator>
-void SweepLine::SweepLineProcess<T,StateT,PolicyT>::addAllData(
+void SweepLine::SweepLineProcess<Traits,Policy>::addAllData(
   const InputIterator& first,
   const InputIterator& last,
   size_t n,
@@ -95,8 +115,8 @@ void SweepLine::SweepLineProcess<T,StateT,PolicyT>::addAllData(
   }
 }
 
-template<typename T, typename StateT, typename PolicyT>
-bool SweepLine::SweepLineProcess<T,StateT,PolicyT>::nextEvent()
+template<typename Traits, typename Policy>
+bool SweepLine::SweepLineProcess<Traits,Policy>::nextEvent()
 {
   if (event_schedule_.empty()) return false;
 
@@ -108,6 +128,7 @@ bool SweepLine::SweepLineProcess<T,StateT,PolicyT>::nextEvent()
   std::pair<bool,bool> valid_neighbors;
   StateT state_new;
   Event e = event_schedule_.top();
+  current_event_ = e;
   state_ = e.state;
   static int n_intersections = 0;
   // process swap event (eg. line intersection)
@@ -121,19 +142,23 @@ bool SweepLine::SweepLineProcess<T,StateT,PolicyT>::nextEvent()
     lnd_new = getNode(d2); // do we really need this ???
     rnd_new = getNode(d3); // separate event for swap stores node directly
     rnd = rightNeighbor(rnd_new);
+    valid_neighbors = std::make_pair(lnd_new!=bst_.begin(), rnd!=bst_.end());
 
-    if (lnd_new != bst_.begin())
+    if (valid_neighbors.first)
     {
       lnd = leftNeighbor(lnd_new);
       processAdjacency(lnd, rnd_new);
     }
 
-    if (rnd != bst_.end()) processAdjacency(lnd_new, rnd);
+    if (valid_neighbors.second) processAdjacency(lnd_new, rnd);
 
     swap(lnd_new, rnd_new, d2, d3);
 
     // done with this event
     event_schedule_.pop();
+    left_neighbor_ = std::make_pair(valid_neighbors.first,lnd);
+    right_neighbor_ = std::make_pair(valid_neighbor.second, rnd);
+
     ++n_intersections;
 
     return true;
@@ -166,13 +191,16 @@ bool SweepLine::SweepLineProcess<T,StateT,PolicyT>::nextEvent()
   }
 
   event_schedule_.pop();
+  left_neighbor_ = std::make_pair(valid_neighbor.first, lnd);
+  right_neighbor_ = std::make_pair(valid_neighbor.second, rnd);
+
   if (event_schedule_.empty())
     std::cout << "Intersections: " << n_intersections << std::endl;
   return true;
 }
 
-template<typename T, typename StateT, typename PolicyT>
-std::pair<bool,bool> SweepLine::SweepLineProcess<T,StateT,PolicyT>::locate(
+template<typename Traits, typename Policy>
+std::pair<bool,bool> SweepLine::SweepLineProcess<Traits,Policy>::locate(
   const StateT& state, NodeIter& left, NodeIter& right)
 {
   if (bst_.empty())
@@ -182,15 +210,15 @@ std::pair<bool,bool> SweepLine::SweepLineProcess<T,StateT,PolicyT>::locate(
     return std::make_pair(false,false);
   }
 
-  data_.back() = PolicyT::dataForLocalization(state);
+  Policy::dataForLocalization(state, data_.back());
   right = bst_.upper_bound(locate_node_id_);
   bool has_left_neighbor = (right != bst_.begin());
   if(has_left_neighbor) left = leftNeighbor(right);
   return std::make_pair(has_left_neighbor, right!=bst_.end());
 }
 
-template<typename T, typename StateT, typename PolicyT>
-void SweepLine::SweepLineProcess<T,StateT,PolicyT>::insert(
+template<typename Traits, typename Policy>
+void SweepLine::SweepLineProcess<Traits,Policy>::insert(
   const NodeIter& position,
   const std::vector<DataId>::iterator& first,
   const std::vector<DataId>::iterator& last,
@@ -212,8 +240,8 @@ void SweepLine::SweepLineProcess<T,StateT,PolicyT>::insert(
   right = getNode(d_id);
 }
 
-template<typename T, typename StateT, typename PolicyT>
-std::pair<bool,bool> SweepLine::SweepLineProcess<T,StateT,PolicyT>::remove(
+template<typename Traits, typename Policy>
+std::pair<bool,bool> SweepLine::SweepLineProcess<Traits,Policy>::remove(
   const std::vector<DataId>::iterator& first,
   const std::vector<DataId>::iterator& last,
   NodeIter& left, NodeIter& right)
@@ -233,8 +261,8 @@ std::pair<bool,bool> SweepLine::SweepLineProcess<T,StateT,PolicyT>::remove(
   return std::make_pair(valid_left, right != bst_.end());
 }
 
-template<typename T, typename StateT, typename PolicyT>
-void SweepLine::SweepLineProcess<T,StateT,PolicyT>::swap(
+template<typename Traits, typename Policy>
+void SweepLine::SweepLineProcess<Traits,Policy>::swap(
   const NodeIter& a, const NodeIter& b, DataId data_a, DataId data_b)
 {
   data2node_[data_a] = b;
@@ -244,8 +272,8 @@ void SweepLine::SweepLineProcess<T,StateT,PolicyT>::swap(
 }
 
 
-template<typename T, typename StateT, typename PolicyT>
-void SweepLine::SweepLineProcess<T,StateT,PolicyT>::processAdjacency(
+template<typename Traits, typename Policy>
+void SweepLine::SweepLineProcess<Traits,Policy>::processAdjacency(
   const NodeIter& a, const NodeIter& b)
 {
   DataId da = getDataId(*a);
@@ -256,7 +284,7 @@ void SweepLine::SweepLineProcess<T,StateT,PolicyT>::processAdjacency(
   //std::cout << "SwapCheck: "<< da << " - " << db << std::endl;
   if (adjacent_data_.count(pid1) == 0 && adjacent_data_.count(pid2) == 0)
   {
-    if(PolicyT::swapCheck(getData(da),getData(db),s))
+    if(Policy::swapCheck(getData(da),getData(db),s))
     {
       adjacent_data_.insert(pid1);
       addSwapEvent(s, da, db);

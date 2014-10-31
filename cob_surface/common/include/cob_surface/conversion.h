@@ -69,7 +69,7 @@
 namespace cob_surface
 {
   template<typename MeshT>
-  struct DefaultOpenMeshPolicy
+  struct DefaultOpenMeshConversionPolicy
   {
     typedef typename MeshT::VertexHandle VHandle;
     typedef typename MeshT::FaceHandle FHandle;
@@ -114,7 +114,7 @@ namespace cob_surface
      * @param mesh - Output mesh
      */
     template<typename PointT, typename MeshT,
-             typename Policy = DefaultOpenMeshPolicy<MeshT> >
+             typename Policy = DefaultOpenMeshConversionPolicy<MeshT> >
     static void pointCloud2Mesh(
       const typename pcl::PointCloud<PointT>::ConstPtr& pc, MeshT& mesh);
   };
