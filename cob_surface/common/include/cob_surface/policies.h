@@ -92,8 +92,13 @@ namespace cob_surface
   };
 
   // define policy for using SweepLineProcess on surface class
+  template<Traits = SweepLineTraits>
   struct SweepLinePolicy
   {
+    typedef typename Traits::ValueT ValueT;
+    typedef typename Traits::DataT DataT;
+    typedef typename Traits::StateT StateT;
+    typedef typename Traits::SurfaceT SurfaceT;
     /** 
      * Determines the order between two states a and b
      * 
@@ -102,12 +107,10 @@ namespace cob_surface
      * 
      * @return returns true if a comes before b
      */
-    template<typename StateT>
     inline static bool stateCompare(const StateT& a, const StateT& b)
     {
-      if (a[0] != b[0]) return a[0] < b[0];
       if (a[1] != b[1]) return a[1] < b[1];
-      else return a[2] < b[2];
+      return a[0] < b[0];
     }
 
     /** 
@@ -119,17 +122,100 @@ namespace cob_surface
      * 
      * @return returns true if a comes before b
      */
-    template<typename DataT, typename StateT>
     static bool dataCompare(const DataT& a, const DataT& b, const StateT& state);
 
-    template<typename DataT, typename StateT>
-    static void dataForLocalization(const StateT& state, DataT& out);
+    /** 
+     * Determines the order between data a and b if both share
+     * one common vertex (v1 or v2)
+     * 
+     * @param a - Data a
+     * @param b - Data b
+     * 
+     * @return - returns true if a commes before b
+     */
+    //static bool dataCompare(const DataT& a, const DataT& b);
 
-    template<typename DataT, typename StateT>
+    /** 
+     * Creates a dummy data set that allows to locate a state within bst
+     * This data will be used by dataCompare()
+     * 
+     * @param state - the state that should be located
+     * @param out - the created dummy data
+     */
+    inline static void dataForLocalization(const StateT& state, DataT& out)
+    {
+      out.op = SweepLineTraits::FAKE;
+      out.xy_ratio = state[0];
+    }
+
+    /** 
+     * tests for 2D line line intersection
+     * 
+     * @param a 
+     * @param b 
+     * @param state 
+     * 
+     * @return 
+     */
     static bool swapCheck(const DataT& a, const DataT& b, StateT& state);
+  };
+
+  // define policy for merging two surfaces
+  template<typename SurfaceT>
+  struct MergePolicy
+  {
+    typedef typename SurfaceT::Scalar ScalarT;
+    typedef typename SurfaceT::Point PointT;
+    typedef typename SurfaceT::VertexHandle VertexHandle;
+    typedef typename SurfaceT::FaceHandle FaceHandle;    
+
+    static bool updateVertex(
+      const FaceHandle& face,
+      const SurfaceT* sf_sensor,
+      VertexHandle& vh_map,
+      SurfaceT* sf_map);
+
+    static bool createVertex(
+      const VertexHandle& vh_sensor,
+      const SurfaceT* sf_sensor,
+      const std::vector<FaceHandle>& triangles,
+      VertexHandle& vh_map,
+      SurfaceT* sf_map);
+
+    static VertexHandle createIntersection(
+      const SurfaceT* sf1,
+      const VertexHandle& vh11,
+      const VertexHandle& vh12,
+      const SurfaceT* sf2,
+      const VertexHandle& vh21,
+      const VertexHandle& vh22,
+      const StateT& p_proj,
+      SurfaceT* sf_map);
+
+    /** 
+     * Checks whether vh1 is left to vh2
+     * 
+     * @param vh1 
+     * @param vh2 
+     * @param sf_map 
+     * 
+     * @return return true if vh1 is left to vh2
+     */
+    static bool vertexLeftRightOrder(
+      const VertexHandle& vh1,
+      const VertexHandle& vh2,
+      const SurfaceT* sf_map);
+
+    static void createBoundingVertices(
+      SurfaceT* sf_map,      
+      const VertexHandle& vh_left,
+      const VertexHandle& vh_right,
+      float alpha,
+      VertexHandle& vh_left_bounding,
+      VertexHandle& vh_right_bounding);
   };
 }
 
-//#include "cob_surface/impl/policies.hpp"
+#include "cob_surface/impl/policies.hpp"
 
 #endif

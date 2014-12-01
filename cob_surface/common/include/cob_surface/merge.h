@@ -69,21 +69,36 @@
 
 namespace cob_surface
 {
-  template<typename Traits, typename Policy>
+  template<typename SurfaceT, typename Policy=cob_surface::MergePolicy<SurfaceT> >
   class Merge
   {
   public:
-    typedef typename Traits::SurfaceT SurfaceT;
+    typedef typename SurfaceT::VertexHandle VertexHandle;
+    typedef typename SurfaceT::FaceHandle FaceHandle;
+    typedef typename SurfaceT::EdgeHandle EdgeHandle;
+    typedef typename SurfaceT::HalfedgeHandle HalfedgeHandle;
+    typedef typename SurfaceT::Point Point;
 
-    typedef SweepLine::SweepLineProcess<SweepLineTraits<SurfaceT>,SweepLinePolicy>
-    SweepLineProcess;
+    // some abbreviation for SweepLine specific types:
+    typedef SweepLineTraits<SurfaceT> sl_Traits;
+    typedef SweepLinePolicy sl_Policy;
+    typedef SweepLine::Event<sl_Traits> sl_Event;
+    typedef SweepLine::DataId sl_DataId;
+    typedef typename sl_Traits::DataT sl_DataT;
+    typedef SweepLine::SweepLineProcess<sl_Traits,sl_Policy> sl_Process;
 
-    typedef std::unordered_map<SurfaceT::VertexHandle,typename SweepLineProcess::Event>
-    VertexEventMap;
 
-    typedef std::list<std::pair<SurfaceT*,SurfaceT::FaceHandle> > ActiveTrianglesBucket;
+    typedef std::unordered_map<VertexHandle, sl_Event> VertexEventMap;
+    typedef std::list<std::pair<SurfaceT*,FaceHandle> > ActiveTrianglesBucket;
+    typedef std::unordered_map<sl_DataId,ActiveTrianglesBucket> ActiveTrianglesMap;
+    typedef std::unordered_map<sl_DataId,VertexHandle> ActiveBorderVertices;
 
-    typedef std::unordered_map<SweepLine::DataId,ActiveTrianglesBucket> ActiveTrianglesMap;
+    struct BorderEdge
+    {
+      VertexHandle v1; //< upper vertex
+      VertexHandle v2; //< lower vertex
+      bool openning; //< whether the edge is openning or closing the surface
+    };
 
   public:
     /*
@@ -92,42 +107,94 @@ namespace cob_surface
     void sensorIntoMap(
       const Mat4& tf_sensor,
       const Mat4& tf_map,
-      const SurfaceT& sf_sensor,
-      SurfaceT& sf_map);
+      const SurfaceT* sf_sensor,
+      SurfaceT* sf_map);
 
-    void initialize(const SurfaceT& sf_sensor, SurfaceT& sf_map);
+    void initialize(const SurfaceT* sf_sensor, SurfaceT* sf_map);
 
-    void preprocess();
+    void preprocess(SurfaceT* sf_map);
 
-    void updateInsertEvent(const SurfaceT& sf, const SurfaceT::VertexHandle& vh,
-                           const SweepLine::DataId& d_id, VertexEventMap& map)
+    void triangulate(const std::vector<VertexHandle>& v_vh, SurfaceT* sf_map);
+
+
+  private:
+    void updateInsertEvent(const SurfaceT* sf, const VertexHandle& vh,
+                           const sl_DataId& d_id, VertexEventMap& map)
     {
       if (map.count(vh)) map[vh].to_insert.push_back(d_id);
       else
       {
-        typename SweepLineProcess::Event ev = {sf.point(vh), {d_id}, {}, false};
+        sl_Event ev = {projSpace(sf,vh), {d_id}, {}, false};
         map.insert(std::make_pair(vh, ev));
       }
     }
 
-    void updateRemoveEvent(const SurfaceT& sf, const SurfaceT::VertexHandle& vh,
-                           const SweepLine::DataId& d_id, VertexEventMap& map)
+    void updateRemoveEvent(const SurfaceT* sf, const VertexHandle& vh,
+                           const sl_DataId& d_id, VertexEventMap& map)
     {
       if (map.count(vh)) map[vh].to_remove.push_back(d_id);
       else
       {
-        typename SweepLineProcess::Event ev = {sf.point(vh), {}, {d_id}, false};
+        sl_Event ev = {projSpace(sf,vh), {}, {d_id}, false};
         map.insert(std::make_pair(vh, ev));
       }
     }
 
-    void transformActiveTrianglesBucket(const DataT& data, ActiveTrianglesBucket& bucket);
+    void createEventForEdge(const SurfaceT* sf, const EdgeHandle& eh,
+                            VertexEventMap& event_map);
 
-    void updateVertex(const ActiveTriangleBucket& bucket, DataT& data);
+    void transformActiveTrianglesBucket(const sl_DataT& data,
+                                        ActiveTrianglesBucket& bucket);
+
+    bool updateVertex(const ActiveTriangleBucket& bucket,
+                      VertexHandle& vh_map,
+                      SurfaceT* sf_map);
+
+    bool createVertex(const ActiveTriangleBucket& bucket,
+                      const VertexHandle& vh_sensor,
+                      const SurfaceT* sf_sensor,
+                      VertexHandle& vh_map,
+                      SurfaceT* sf_map);
+
+    /** 
+     * check if edge between vh1 and vh2 is an opening or closing edge
+     * 
+     * @param op - the triangle operation performed by this edge
+     * @param vh1 - the upper vertex
+     * @param vh2 - the lower vertex
+     * @param sf_map - point to surface both vh belong to
+     * 
+     * @return true if edge is opening, false if closing
+     */
+    inline bool isOpeningEdge(const SweepLineTraits::OperationType& op,
+                              const VertexHandle& vh1,
+                              const VertexHandle& vh2,
+                              const SurfaceT* sf_map)
+    {
+      /* The following logic applies:
+       *  (EN: enable single, R: vh1 is to the right of vh2)
+       *  out  |  EN   R
+       * ---------------
+       *   1   |  0   0            ==>  !(EN xor R)
+       *   0   |  0   1         which is (EN == R)
+       *   0   |  1   0
+       *   1   |  1   1
+       */
+      return ( (op == SweepLineTraits::ENABLE_SINGLE)
+               == Policy::vertexLeftRightOrder(vh2,vh1,sf_map) )
+    }
+
+    inline BorderEdge createBorderEdge(const VertexHandle& vh1,
+                                       const VertexHandle& vh2,
+                                       const SurfaceT* sf_map,
+                                       const sl_DataT& data)
+    {
+      return {vh1, vh2, isOpeningEdge(data.op, vh1, vh2, sf_map) };
+    }
     
 
   private:
-    SweepLineProcess sl_;
+    sl_Process sl_;
     
 
   };

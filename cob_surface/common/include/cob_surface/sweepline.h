@@ -68,12 +68,23 @@
 #include <unordered_set>
 #include <queue>
 #include <set>
+#include <algorithm>
+
 
 namespace SweepLine
 {
   typedef uint32_t NodeId;
   typedef uint32_t DataId;
   typedef uint64_t DataPairId;
+
+  template<typename Traits>
+  struct Event
+  {
+    typename Traits::StateT state;
+    std::vector<DataId> to_insert;
+    std::vector<DataId> to_remove;
+    bool swap_event;
+  };
 
   inline DataPairId makeDataPairId(DataId a, DataId b) {
     return (DataPairId(a) << 32) | DataPairId(b);
@@ -87,11 +98,10 @@ namespace SweepLine
 
   /**
    * @class SweepLineProcess
+   * @brief performs a sweepline process over assigned data
    *
-   * performce a sweepline process over assigned data
-   *
-   * template Traits - defines DataT and StateT
-   * template Policy - policies for compare and fake data
+   * @tparam Traits - defines DataT and StateT
+   * @tparam Policy - policies for compare and fake data
    *
    */
   template<typename Traits, typename Policy>
@@ -100,21 +110,14 @@ namespace SweepLine
   public:
     typedef typename Traits::DataT DataT;
     typedef typename Traits::StateT StateT;
-
-    struct Event
-    {
-      StateT state;
-      std::vector<DataId> to_insert;
-      std::vector<DataId> to_remove;
-      bool swap_event;
-    };
+    typedef Event<Traits> Event;
 
     friend inline const bool operator< (const Event& lhs, const Event& rhs)
     {
       return Policy::stateCompare(lhs.state, rhs.state)
     }
 
-    // delegates the compare operation of BST to Policy class
+    // delegates the compare operation of BST to definition by policy
     struct DelegateCompare
     {
       DelegateCompare(SweepLineProcess<Traits,Policy>* sl) : p(sl) { }
@@ -123,6 +126,11 @@ namespace SweepLine
         return Policy::dataCompare(p->getData(p->getDataId(a)),
                                    p->getData(p->getDataId(b)), p->state_);
       }
+      /*
+      bool operator() (DataId a, DataId b)
+      {
+        return Policy::dataCompare(p->getData(a), p->getData(b));
+        }*/
 
       SweepLineProcess<Traits,Policy>* p; ///< pointer to parent
     };
@@ -161,9 +169,9 @@ namespace SweepLine
      * @param n - number of all elements
      * @param out_data_ids - OUT: list of DataId
      */
-    template<typename InputIterator>
-    void addAllData(const InputIterator& first,
-                    const InputIterator& last,
+    template<typename IteratorT>
+    void addAllData(const IteratorT& begin,
+                    const IteratorT& end,
                     size_t n,
                     std::vector<DataId>& out_data_ids);
 
@@ -171,8 +179,23 @@ namespace SweepLine
      * Copy event to event schedule
      * 
      * @param event - the event to add
+     * @param data_is_sorted - set to false if sweepline needs to sort the data
+     *    of to_insert and to_remove before the event is added.
      */
-    inline void addEvent(const Event& event) {event_schedule_.push(event);}
+    inline void addEvent(const Event& event, bool data_is_sorted = false)
+    {
+      if(!data_is_sorted)
+      {
+        Event e = event;
+        std::sort(e.to_insert.begin(), e.to_insert.end(), DelegateCompare(this));
+        std::sort(e.to_remove.begin(), e.to_remove.end(), DelegateCompare(this));
+        event_schedule_.push(e);
+      }
+      else
+      {
+        event_schedule_.push(event);
+      }
+    }
 
     /**
      * Add event for data start point and/or data end point
@@ -230,7 +253,7 @@ namespace SweepLine
      * 
      * @return - False if there is nothing to the left (DataId invalid)
      */
-    inline bool getLeftData(DataId& id)
+    inline bool getLeftDataId(DataId& id)
     {
       if (!left_neighbor_.first) return false;
       id = getDataId(left_neighbor_.second);
@@ -244,7 +267,7 @@ namespace SweepLine
      * 
      * @return - False if there is nothing to the right (DataId invalid)
      */
-    inline bool getRightData(DataId& id)
+    inline bool getRightDataId(DataId& id)
     {
       if (!right_neighbor_.first) return false;
       id = getDataId(right_neighbor_.second);

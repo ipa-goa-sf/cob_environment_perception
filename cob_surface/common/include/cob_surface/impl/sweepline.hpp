@@ -84,10 +84,10 @@ void SweepLine::SweepLineProcess<Traits,Policy>::reset(unsigned int n_data)
 }
 
 template<typename Traits, typename Policy>
-template<typename InputIterator>
+template<typename IteratorT>
 void SweepLine::SweepLineProcess<Traits,Policy>::addAllData(
-  const InputIterator& first,
-  const InputIterator& last,
+  const IteratorT& begin,
+  const IteratorT& end,
   size_t n,
   std::vector<DataId>& out_data_ids)
 {
@@ -108,7 +108,7 @@ void SweepLine::SweepLineProcess<Traits,Policy>::addAllData(
   out_data_ids.resize(n);
 
   // there might be a better way for doing this:
-  for(InputIterator it = first; it != last; ++it)
+  for(IteratorT it = begin; it != end; ++it)
   {
     data_[id] = *it;
     out_data_ids[id] = id++;

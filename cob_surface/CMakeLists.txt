@@ -106,9 +106,10 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-add_executable(test_openmesh common/src/test_openmesh.cpp)
-add_executable(test_sweepline common/src/test_sweepline.cpp)
-add_executable(test_mesh_sweepline common/src/test_mesh_sweepline.cpp)
+#add_executable(test_openmesh common/src/test_openmesh.cpp)
+#add_executable(test_sweepline common/src/test_sweepline.cpp)
+#add_executable(test_mesh_sweepline common/src/test_mesh_sweepline.cpp)
+add_executable(test_intersection common/src/test.cpp)
 #add_executable(test_stl_set common/src/test_stl_set.cpp)
 
 ## Add cmake target dependencies of the executable/library
@@ -116,13 +117,15 @@ add_executable(test_mesh_sweepline common/src/test_mesh_sweepline.cpp)
 # add_dependencies(cob_surface_node cob_surface_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(test_openmesh
-   ${catkin_LIBRARIES}
-)
+#target_link_libraries(test_openmesh
+#   ${catkin_LIBRARIES}
+#)
 
-target_link_libraries(test_mesh_sweepline
-   ${catkin_LIBRARIES}
-)
+#target_link_libraries(test_mesh_sweepline
+#   ${catkin_LIBRARIES}
+#)
+
+target_link_libraries(test_intersection ${catkin_LIBRARIES})
 
 #############
 ## Install ##
@@ -174,4 +177,4 @@ target_link_libraries(test_mesh_sweepline
 
 set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS}")
 # Use release build for significant better performance
-#set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Release)

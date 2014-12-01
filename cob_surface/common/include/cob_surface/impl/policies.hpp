@@ -63,26 +63,143 @@
 #ifndef COB_SURFACE_POLICIES_HPP
 #define COB_SURFACE_POLICIES_HPP
 
-template<typename DataT, typename StateT>
-static bool cob_surface::SweepLinePolicy::compare(
+#include "cob_surface/geometry.h"
+
+template<typename Traits>
+static bool cob_surface::SweepLinePolicy<Traits>::dataCompare(
   const DataT& a, const DataT& b, const StateT& state)
 {
+  ValueT y = state[1];
+  if (a.op == SweepLineTraits::FAKE)
+  {
+    ValueT bx = (projSpace(b.sf,b.v1)[1] - y) * b.xy_ratio + projSpace(b.sf,b.v1)[0];
+    return a.xy_ratio < bx;
+  }
 
+  if (b.op == SweepLineTraits::FAKE)
+  {
+    ValueT ax = (projSpace(a.sf,a.v1)[1] - y) * a.xy_ratio + projSpace(a.sf,a.v1)[0];
+    return ax < b.xy_ratio;
+  }
+
+  // a & b are both starting edges at the same vertex
+  if (a.v1 == b.v1)
+    return projSpace(a.sf,a.v2)[0] < projSpace(b.sf,b.v2)[0];
+
+
+  // intersection of y at a:
+  ValueT ax = (projSpace(a.sf,a.v1)[1] - y) * a.xy_ratio + projSpace(a.sf,a.v1)[0];
+  // intersection of y at b:
+  ValueT bx = (projSpace(b.sf,b.v1)[1] - y) * b.xy_ratio + projSpace(b.sf,b.v1)[0];
+  if (ax == bx)
+  {
+    std::cout << "dataCompare: swap point " << std::endl;
+    return projSpace(a.sf,a.v2)[0] < projSpace(b.sf,b.v2)[0];
+  }
+  return ax < bx;
 }
 
-
-template<typename DataT, typename StateT>
-static void cob_surface::SweepLinePolicy::dataForLocalization(
-  const StateT& state, DataT& out)
-{
-
-}
-
-template<typename DataT, typename StateT>
-static bool cob_surface::SweepLinePolicy::swapCheck(
+template<typename Traits>
+static bool cob_surface::SweepLinePolicy<Traits>::swapCheck(
   const DataT& a, const DataT& b, StateT& state)
 {
+  ValueT t,s;
+  return Geometry::lineLineIntersection(
+    projSpace(a.sf,a.v1), projSpace(a.sf,a.v2),
+    projSpace(b.sf,b.v1), projSpace(b.sf,b.v2), state, t, s);
+}
 
+/*template<typename Traits>
+static bool cob_surface::SweepLinePolicy<Traits>::dataCompare(
+  const DataT& a, const DataT& b)
+{} */
+
+template<typename SurfaceT>
+static bool cob_surface::MergePolicy<SurfaceT>::updateVertex(
+  const FaceHandle& face, const SurfaceT* sf_sensor,
+  VertexHandle& vh_map, SurfaceT* sf_map)
+{
+  VertexHandle vh1, vh2, vh3;
+  getFaceVertexHandles(sf_sensor, face, vh1, vh2, vh3);
+  ScalarT u, v, w;
+  Geometry::barycentric2d(
+    projSpace(sf_map,vh_map), projSpace(sf_sensor,vh1),
+    projSpace(sf_sensor,vh2), projSpace(sf_sensor,vh3), u, v, w);
+
+  // the following update should be replaced by a kalman filter update:
+  PointT p_sensor = u * mapSpace(sf_sensor,vh1) + 
+    v * mapSpace(sf_sensor,vh2) + w * mapSpace(sf_sensor,vh3);
+  mapSpace(sf_map,vh_map) += p_senor;
+  mapSpace(sf_map,vh_map) *= .5;
+}
+
+template<typename SurfaceT>
+static bool cob_surface::MergePolicy<SurfaceT>::createVertex(
+  const VertexHandle& vh_sensor, const SurfaceT* sf_sensor,
+  const std::vector<FaceHandle>& triangles, VertexHandle& vh_map, SurfaceT* sf_map)
+{
+  std::vector<PointT> p_map(triangles.size());
+  ScalarT min_dist = 100.;
+  unsigned int min_idx = 0;
+
+  for (unsigned int i=0; i<triangles.size(); ++i)
+  {
+    VertexHandle vh1, vh2, vh3;
+    getFaceVertexHandles(sf_map, triangles[i], vh1, vh2, vh3);
+    ScalarT u, v, w;
+    Geometry::barycentric2d(
+      projSpace(sf_sensor,vh_sensor), projSpace(sf_map,vh1),
+      projSpace(sf_map,vh3),  projSpace(sf_map,vh3), u, v, w);
+    p_map[i] = u * mapSpace(sf_map,vh1) + v * mapSpace(sf_map,vh2)
+      + w * mapSpace(sf_map,vh3);
+    ScalarT dist = (mapSpace(sf_sensor,vh_sensor) - p_map[i]).norm();
+    if (dist < min_dist) { min_dist = dist; min_idx = i; }
+  }
+  // the following update should be replaced by a kalman filter update:
+  vh_map = sf_map.add_vertex( .5*(p_map[min_idx] + mapSpace(sf_sensor,vh_sensor)) );
+  projSpace(sf_map,vh_map) = projSpace(sf_sensor,vh_sensor);
+}
+
+template<typename SurfaceT>
+static VertexHandle cob_surface::MergePolicy<SurfaceT>::createIntersection(
+  const SurfaceT* sf1, const VertexHandle& vh11, const VertexHandle& vh12,
+  const SurfaceT* sf2, const VertexHandle& vh21, const VertexHandle& vh22,
+  const StateT& p_proj, SurfaceT* sf_map)
+{
+  if (sf1 == sf2) return VertexHandle(); // return invalid vh
+  // TODO: test whether new intersection computation is actually faster
+  //   then computing the norm twice
+  ScalarT s = (p_proj - projSpace(sf1,vh11)).norm();
+  ScalarT t = (p_proj - projSpace(sf2,vh21)).norm();
+  PointT p1 = mapSpace(sf1,vh11) * (1.-s) + mapSpace(sf1,vh12) * s;
+  PointT p2 = mapSpace(sf2,vh21) * (1.-s) + mapSpace(sf2,vh22) * t;
+  VertexHandle vh =  sf_map->add_vertex( .5*(p1+p2) );
+  projSpace(sf_map,vh) = p_proj;
+  return vh;
+}
+
+template<typename SurfaceT>
+static bool cob_surface::MergePolicy<SurfaceT>::vertexLeftRightOrder(
+  const VertexHandle& vh1, const VertexHandle& vh2, const SurfaceT* sf_map)
+{
+  return projSpace(sf_map,vh1)[0] < projSpace(sf_map,vh2)[0];
+  // check the y coordinate too?
+}
+
+template<typename SurfaceT>
+static void cob_surface::MergePolicy<SurfaceT>::createBoundingVertices(
+  SurfaceT* sf_map, const VertexHandle& vh_left, const VertexHandle& vh_right,
+  float alpha, VertexHandle& vh_left_bounding, VertexHandle& vh_right_bounding)
+{
+  ScalarT xmin = projSpace(sf_map,vh_left)[0];
+  ScalarT xmax = projSpace(sf_map,vh_right)[0];
+  ScalarT d = alpha*(xmax - xmin);
+  vh_left_bounding = sf_map.add_vertex();
+  projSpace(sf_map,vh_left_bounding)[0] = xmin - d;
+  projSpace(sf_map,vh_left_bounding)[1] = ??;
+  vh_right_bounding = sf_map.add_vertex();
+  projSpace(sf_map,vh_right_bounding)[0] = xmax + d;
+  projSpace(sf_map,vh_right_bounding)[1] = ??;
 }
 
 #endif

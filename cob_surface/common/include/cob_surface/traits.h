@@ -71,6 +71,9 @@ namespace cob_surface
   struct SweepLineTraits
   {
     typedef float ValueT;
+    typedef Eigen::Matrix<ValueT, 2, 1> StateT;
+    typedef typename SurfaceT::VertexHandle;
+    typedef typename SurfaceT::FaceHandle;
 
     /* Definition of operations for the active triangle list.
      *
@@ -86,27 +89,30 @@ namespace cob_surface
       ENABLE_DOUBLE = 2, // turn on f1 and f2
       DISABLE_SINGLE = 3, // turn off f1
       DISABLE_DOUBLE = 4, // turn off f1 and f2
-      SWITCH = 5 // turn off f1, turn on f2
+      SWITCH = 5, // turn off f1, turn on f2
+      FAKE = 6 // fake data for localization
     };
 
     struct DataT
     {
+      DataT() {}
+      DataT(SurfaceT* sf_, const VertexHandle& v1_, const VertexHandle& v2_,
+            OperationType op_, const FaceHandle& f1_, const FaceHandle& f2_)
+        : sf(sf_), v1(v1_), v2(v2_), op(op_), f1(f1_), f2(f2_)
+      {
+        StateT d = projSpace(sf_,v1_) - projSpace(sf_,v2_);
+        xy_ratio = - d[0] / d[1];
+      }
+
       SurfaceT* sf;
-      typename SurfaceT::VertexHandle v1;
-      typename SurfaceT::VertexHandle v2;
+      VertexHandle v1; //< upper vertex
+      VertexHandle v2; //< lower vertex
       OperationType op;
-      typename SurfaceT::FaceHandle f1;
-      typename SurfaceT::FaceHandle f2;
+      FaceHandle f1;
+      FaceHandle f2;
+      ValueT xy_ratio;
     };
-
-    typedef typename SurfaceT::Point StateT;
   };
-
-  struct MergeTraits
-  {
-    typedef Surface SurfaceT;
-  };
-
 }
 
 #endif
