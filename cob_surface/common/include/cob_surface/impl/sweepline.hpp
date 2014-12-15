@@ -69,7 +69,7 @@ void SweepLine::SweepLineProcess<Traits,Policy>::reset(unsigned int n_data)
   next_id_ = 0;
 
   bst_.clear();
-  event_schedule_ = std::priority_queue<Event>();
+  event_schedule_ = std::priority_queue<EventT>();
   data_.clear();
   data_.resize(n_data+1); // last place is for localization data
   data2node_.clear();
@@ -79,8 +79,6 @@ void SweepLine::SweepLineProcess<Traits,Policy>::reset(unsigned int n_data)
   locate_node_id_ = NodeId(n_data);
   node2data_[locate_node_id_] = DataId(n_data);
   adjacent_data_.clear();
-  out_data_ids.clear();
-  out_data_ids.resize(n_data);
 }
 
 template<typename Traits, typename Policy>
@@ -94,7 +92,7 @@ void SweepLine::SweepLineProcess<Traits,Policy>::addAllData(
   DataId id = 0;
 
   bst_.clear();
-  event_schedule_ = std::priority_queue<Event>();
+  event_schedule_ = std::priority_queue<EventT>();
   data_.clear();
   data_.resize(n+1); // last place is for localization data
   data2node_.clear();
@@ -127,7 +125,7 @@ bool SweepLine::SweepLineProcess<Traits,Policy>::nextEvent()
 
   std::pair<bool,bool> valid_neighbors;
   StateT state_new;
-  Event e = event_schedule_.top();
+  EventT e = event_schedule_.top();
   current_event_ = e;
   state_ = e.state;
   static int n_intersections = 0;
@@ -157,7 +155,7 @@ bool SweepLine::SweepLineProcess<Traits,Policy>::nextEvent()
     // done with this event
     event_schedule_.pop();
     left_neighbor_ = std::make_pair(valid_neighbors.first,lnd);
-    right_neighbor_ = std::make_pair(valid_neighbor.second, rnd);
+    right_neighbor_ = std::make_pair(valid_neighbors.second, rnd);
 
     ++n_intersections;
 
@@ -191,8 +189,8 @@ bool SweepLine::SweepLineProcess<Traits,Policy>::nextEvent()
   }
 
   event_schedule_.pop();
-  left_neighbor_ = std::make_pair(valid_neighbor.first, lnd);
-  right_neighbor_ = std::make_pair(valid_neighbor.second, rnd);
+  left_neighbor_ = std::make_pair(valid_neighbors.first, lnd);
+  right_neighbor_ = std::make_pair(valid_neighbors.second, rnd);
 
   if (event_schedule_.empty())
     std::cout << "Intersections: " << n_intersections << std::endl;

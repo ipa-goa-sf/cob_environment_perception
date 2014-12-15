@@ -64,8 +64,12 @@
 #define COB_SURFACE_MERGE_H
 
 #include <unordered_map>
+#include <list>
 
-#include <cob_surface/typedefs.h>
+#include "cob_surface/traits.h"
+#include "cob_surface/policies.h"
+#include "cob_surface/sweepline.h"
+#include "cob_surface/advancing_front.h"
 
 namespace cob_surface
 {
@@ -81,15 +85,14 @@ namespace cob_surface
 
     // some abbreviation for SweepLine specific types:
     typedef SweepLineTraits<SurfaceT> sl_Traits;
-    typedef SweepLinePolicy sl_Policy;
-    typedef SweepLine::Event<sl_Traits> sl_Event;
+    typedef SweepLinePolicy<SurfaceT> sl_Policy;
     typedef SweepLine::DataId sl_DataId;
     typedef typename sl_Traits::DataT sl_DataT;
     typedef SweepLine::SweepLineProcess<sl_Traits,sl_Policy> sl_Process;
+    typedef typename sl_Process::EventT sl_Event;
 
-
-    typedef std::unordered_map<VertexHandle, sl_Event> VertexEventMap;
-    typedef std::list<std::pair<SurfaceT*,FaceHandle> > ActiveTrianglesBucket;
+    typedef std::unordered_map<VertexHandle,sl_Event> VertexEventMap;
+    typedef std::list<std::pair<const SurfaceT*,FaceHandle> > ActiveTrianglesBucket;
     typedef std::unordered_map<sl_DataId,ActiveTrianglesBucket> ActiveTrianglesMap;
     typedef std::unordered_map<sl_DataId,VertexHandle> ActiveBorderVertices;
 
@@ -104,17 +107,22 @@ namespace cob_surface
     /*
       merges sensor surface into map surface
     */
-    void sensorIntoMap(
-      const Mat4& tf_sensor,
-      const Mat4& tf_map,
-      const SurfaceT* sf_sensor,
-      SurfaceT* sf_map);
 
     void initialize(const SurfaceT* sf_sensor, SurfaceT* sf_map);
 
-    void preprocess(SurfaceT* sf_map);
+    void preprocess(SurfaceT* sf_map,
+                    std::vector<VertexHandle>& points_to_triangulate,
+                    std::vector<BorderEdge>& border_edges);
 
     void triangulate(const std::vector<VertexHandle>& v_vh, SurfaceT* sf_map);
+
+    void compute(SurfaceT* sf_map)
+    {
+       std::vector<VertexHandle> points_to_triangulate;
+       std::vector<BorderEdge> border_edges;
+       preprocess(sf_map, points_to_triangulate, border_edges);
+       triangulate(points_to_triangulate, sf_map);
+    }
 
 
   private:
@@ -146,11 +154,11 @@ namespace cob_surface
     void transformActiveTrianglesBucket(const sl_DataT& data,
                                         ActiveTrianglesBucket& bucket);
 
-    bool updateVertex(const ActiveTriangleBucket& bucket,
+    bool updateVertex(const ActiveTrianglesBucket& bucket,
                       VertexHandle& vh_map,
                       SurfaceT* sf_map);
 
-    bool createVertex(const ActiveTriangleBucket& bucket,
+    bool createVertex(const ActiveTrianglesBucket& bucket,
                       const VertexHandle& vh_sensor,
                       const SurfaceT* sf_sensor,
                       VertexHandle& vh_map,
@@ -166,7 +174,7 @@ namespace cob_surface
      * 
      * @return true if edge is opening, false if closing
      */
-    inline bool isOpeningEdge(const SweepLineTraits::OperationType& op,
+    inline bool isOpeningEdge(const typename sl_Traits::OperationType& op,
                               const VertexHandle& vh1,
                               const VertexHandle& vh2,
                               const SurfaceT* sf_map)
@@ -180,8 +188,8 @@ namespace cob_surface
        *   0   |  1   0
        *   1   |  1   1
        */
-      return ( (op == SweepLineTraits::ENABLE_SINGLE)
-               == Policy::vertexLeftRightOrder(vh2,vh1,sf_map) )
+      return ( (op == sl_Traits::ENABLE_SINGLE)
+               == Policy::vertexLeftRightOrder(vh2,vh1,sf_map) );
     }
 
     inline BorderEdge createBorderEdge(const VertexHandle& vh1,
@@ -200,5 +208,6 @@ namespace cob_surface
   };
 }
 
+#include "cob_surface/impl/merge.hpp"
 
 #endif

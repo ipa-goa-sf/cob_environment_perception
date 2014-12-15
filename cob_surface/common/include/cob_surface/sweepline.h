@@ -77,15 +77,6 @@ namespace SweepLine
   typedef uint32_t DataId;
   typedef uint64_t DataPairId;
 
-  template<typename Traits>
-  struct Event
-  {
-    typename Traits::StateT state;
-    std::vector<DataId> to_insert;
-    std::vector<DataId> to_remove;
-    bool swap_event;
-  };
-
   inline DataPairId makeDataPairId(DataId a, DataId b) {
     return (DataPairId(a) << 32) | DataPairId(b);
   }
@@ -110,18 +101,25 @@ namespace SweepLine
   public:
     typedef typename Traits::DataT DataT;
     typedef typename Traits::StateT StateT;
-    typedef Event<Traits> Event;
 
-    friend inline const bool operator< (const Event& lhs, const Event& rhs)
+    struct EventT
     {
-      return Policy::stateCompare(lhs.state, rhs.state)
+      typename Traits::StateT state;
+      std::vector<DataId> to_insert;
+      std::vector<DataId> to_remove;
+      bool swap_event;
+    };
+
+    friend inline const bool operator< (const EventT& lhs, const EventT& rhs)
+    { // priority queue sorts descending, but we sort ascending
+      return Policy::stateCompare(rhs.state, lhs.state);
     }
 
     // delegates the compare operation of BST to definition by policy
     struct DelegateCompare
     {
       DelegateCompare(SweepLineProcess<Traits,Policy>* sl) : p(sl) { }
-      bool operator() (NodeId a, NodeId b)
+      bool operator() (const NodeId& a, const NodeId& b)
       {
         return Policy::dataCompare(p->getData(p->getDataId(a)),
                                    p->getData(p->getDataId(b)), p->state_);
@@ -157,7 +155,7 @@ namespace SweepLine
     inline DataId addData(const DataT& data)
     {
       data_[next_id_] = data;
-      out_data_ids_[next_id_] = next_id_++;
+      return next_id_++;
     }
 
     /** 
@@ -182,11 +180,11 @@ namespace SweepLine
      * @param data_is_sorted - set to false if sweepline needs to sort the data
      *    of to_insert and to_remove before the event is added.
      */
-    inline void addEvent(const Event& event, bool data_is_sorted = false)
+    inline void addEvent(const EventT& event, bool data_is_sorted = false)
     {
       if(!data_is_sorted)
       {
-        Event e = event;
+        EventT e = event;
         std::sort(e.to_insert.begin(), e.to_insert.end(), DelegateCompare(this));
         std::sort(e.to_remove.begin(), e.to_remove.end(), DelegateCompare(this));
         event_schedule_.push(e);
@@ -208,7 +206,7 @@ namespace SweepLine
                          const std::vector<DataId>& data_to_insert,
                          const std::vector<DataId>& data_to_remove)
     {
-      event_schedule_.push(Event({event_state,data_to_insert,data_to_remove,false}));
+      event_schedule_.push(EventT({event_state,data_to_insert,data_to_remove,false}));
     }
 
     /**
@@ -221,7 +219,7 @@ namespace SweepLine
     inline void addSwapEvent(const StateT& event_state,
                              DataId data_a, DataId data_b)
     {
-      event_schedule_.push(Event({event_state, {data_a}, {data_b}, true}));
+      event_schedule_.push(EventT({event_state, {data_a}, {data_b}, true}));
     }
 
     /**
@@ -244,7 +242,7 @@ namespace SweepLine
      * 
      * @return the event
      */
-    inline Event& getCurrentEvent() { return current_event_; }
+    inline EventT& getCurrentEvent() { return current_event_; }
 
     /** 
      * Get the DataId left to the currently processed event
@@ -256,7 +254,7 @@ namespace SweepLine
     inline bool getLeftDataId(DataId& id)
     {
       if (!left_neighbor_.first) return false;
-      id = getDataId(left_neighbor_.second);
+      id = getDataId(*left_neighbor_.second);
       return true;
     }
 
@@ -270,9 +268,15 @@ namespace SweepLine
     inline bool getRightDataId(DataId& id)
     {
       if (!right_neighbor_.first) return false;
-      id = getDataId(right_neighbor_.second);
+      id = getDataId(*right_neighbor_.second);
       return true;
     }
+
+    /// gets data ID from node ID
+    inline DataId& getDataId(const NodeId& n) { return node2data_[n]; }
+
+    /// gets node iterator from data ID
+    inline NodeIter& getNode(const DataId& d) { return data2node_[d]; }
 
   private:
     /** 
@@ -339,12 +343,6 @@ namespace SweepLine
       return s_nId++;
     }
 
-    /// gets node iterator from data ID
-    inline NodeIter& getNode(const DataId& d) { return data2node_[d]; }
-
-    /// gets data ID from node ID
-    inline DataId& getDataId(const NodeId& n) { return node2data_[n]; }
-
   private:
     /* Note: association containers are necessary, because the nodes in 
        std::set structure may not be modified (e.g. swap operation) */
@@ -352,7 +350,7 @@ namespace SweepLine
     /// represents the currently active data on SL as binary search tree
     std::set<NodeId, DelegateCompare> bst_;
     /// queue of events left to process
-    std::priority_queue<Event> event_schedule_;
+    std::priority_queue<EventT> event_schedule_;
     ///
     std::vector<DataT> data_;
     /// maintains data to bst node association
@@ -366,7 +364,7 @@ namespace SweepLine
     DataId next_id_;
     /// current state
     StateT state_;
-    Event current_event_;
+    EventT current_event_;
     std::pair<bool,NodeIter> left_neighbor_;
     std::pair<bool,NodeIter> right_neighbor_;
   };

@@ -66,16 +66,17 @@
 #include <OpenMesh/Core/IO/MeshIO.hh>
 
 //#include "cob_3d_mapping_common/sensor_model.h"
-#include "cob_surface/conversion.h"
-#include "cob_surface/sensors.h"
+//#include "cob_surface/conversion.h"
+//#include "cob_surface/sensors.h"
 #include "cob_surface/surface.h"
-#include "cob_surface/policies.h"
+//#include "cob_surface/policies.h"
+#include "cob_surface/merge.h"
 
 int main(int argc, char** argv)
 {
   using namespace std::chrono;
 
-  if(argc<4)
+  if(0)//argc<4)
   {
     std::cout<<"Usage: test_mesh_sweepline input_1.ply input_2.ply output.ply"<<std::endl;
     return 0;
@@ -85,20 +86,27 @@ int main(int argc, char** argv)
   system_clock::duration elapsed;
 
   cob_surface::Surface sf1, sf2;
-  OpenMesh::IO::read_mesh(sf1, argv[1]);
-  OpenMesh::IO::read_mesh(sf2, argv[2]);
+  //OpenMesh::IO::read_mesh(sf1, argv[1]);
+  //OpenMesh::IO::read_mesh(sf2, argv[2]);
+  std::string in1("/home/goa-sf/benchmark/meshes/random/random_mesh_flat_01.ply");
+  std::string in2("/home/goa-sf/benchmark/meshes/random/random_mesh_flat_02.ply");
+  std::string out("/home/goa-sf/benchmark/meshes/random/out.ply");
+  OpenMesh::IO::read_mesh(sf1, in1);
+  OpenMesh::IO::read_mesh(sf2, in2);
+  
 
   start = system_clock::now();
 
   cob_surface::Merge<cob_surface::Surface> merge;
+  cob_surface::transformToProjSpace(&sf1);
+  cob_surface::transformToProjSpace(&sf2);
   merge.initialize(&sf1,&sf2);
-  merge.preprocess(&sf2);
-  merge.triangulate(&sf2);
+  merge.compute(&sf2);
 
   end = system_clock::now();
   elapsed = duration_cast<microseconds>(end-start);
   std::cout << "Merging took " << elapsed.count()/1000000. <<" sec"<<std::endl;
 
-  OpenMesh::IO::write_mesh(sf2,argv[3]);
+  OpenMesh::IO::write_mesh(sf2,out);
   return 0;
 }

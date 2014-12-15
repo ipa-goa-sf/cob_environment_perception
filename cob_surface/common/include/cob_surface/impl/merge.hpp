@@ -63,19 +63,6 @@
 #ifndef COB_SURFACE_MERGE_HPP
 #define COB_SURFACE_MERGE_HPP
 
-#include "cob_surface/sweepline.h"
-#include "cob_surface/traits.h"
-#include "cob_surface/policies.h"
-
-template<typename SurfaceT, typename Policy>
-void cob_surface::Merge<SurfaceT,Policy>::sensorIntoMap(
-  const Mat4& tf_sensor,
-  const Mat4& tf_map,
-  const SurfaceT* sf_sensor,
-  SurfaceT* sf_map)
-{   
-  // HOW TO DELETE FACES AND EDGES ???????????????
-}
 
 template<typename SurfaceT, typename Policy>
 void cob_surface::Merge<SurfaceT,Policy>::initialize(
@@ -84,9 +71,9 @@ void cob_surface::Merge<SurfaceT,Policy>::initialize(
   VertexEventMap event_map_sensor;
   VertexEventMap event_map_map;
 
-  sl_.reset(sf_sensors->n_edges() + sf_map->n_edges());
+  sl_.reset(sf_sensor->n_edges() + sf_map->n_edges());
 
-  SurfaceT::EdgeIter e_it;
+  typename SurfaceT::EdgeIter e_it;
   // create sweepline data elements from surface edges and determine
   // which side of the edge to process first.
   // Create events for every vertex and update these events
@@ -95,15 +82,15 @@ void cob_surface::Merge<SurfaceT,Policy>::initialize(
     createEventForEdge(sf_sensor,*e_it, event_map_sensor);
 
   for (e_it=sf_map->edges_begin(); e_it!=sf_map->edges_end(); ++e_it)
-    createEventForEdge(sf_map,*e_it), event_map_map;
+    createEventForEdge(sf_map,*e_it, event_map_map);
 
   // add events to SweepLineProcess
-  VertexEventMap::iterator map_it=event_map_sensor.begin()
-  for (; map_it!=event_sensor.end(); ++map_it)
+  typename VertexEventMap::iterator map_it=event_map_sensor.begin();
+  for (; map_it!=event_map_sensor.end(); ++map_it)
   {
     sl_.addEvent(map_it->second);
   }
-   map_it=event_map_map.begin()
+  map_it=event_map_map.begin();
   for (; map_it!=event_map_map.end(); ++map_it)
   {
     sl_.addEvent(map_it->second);
@@ -111,7 +98,10 @@ void cob_surface::Merge<SurfaceT,Policy>::initialize(
 }
 
 template<typename SurfaceT, typename Policy>
-void cob_surface::Merge<SurfaceT,Policy>::preprocess(SurfaceT* sf_map)
+void cob_surface::Merge<SurfaceT,Policy>::preprocess(
+  SurfaceT* sf_map,
+  std::vector<VertexHandle>& points_to_triangulate,
+  std::vector<BorderEdge>& border_edges)
 {
   /* This step iterates the sweepline to localize every vertex on a triangle
    * and use it to update the vertex position. 
@@ -129,11 +119,10 @@ void cob_surface::Merge<SurfaceT,Policy>::preprocess(SurfaceT* sf_map)
    */
   ActiveTrianglesMap atm;
   sl_Event e;
-  sl_DataId d_id;
-
-  std::vector<VertexHandle> points_to_triangulate;
-  std::vector<BorderEdge> border_edges;
+  sl_DataId d_id; 
   ActiveBorderVertices abv;
+  points_to_triangulate.clear();
+  border_edges.clear();
 
   std::vector<sl_DataId>::iterator it;
   while (sl_.nextEvent())
@@ -177,18 +166,18 @@ void cob_surface::Merge<SurfaceT,Policy>::preprocess(SurfaceT* sf_map)
         {
           border_edges.push_back(createBorderEdge(abv_it->second, vh, sf_map, d1));
           abv.erase(abv_it);
-          abv.insert(e.to_insert[0],vh);
+          abv.insert(std::make_pair(e.to_insert[0],vh));
         }
         else if ( (abv_it=abv.find(e.to_insert[0])) != abv.end() )
         {
           border_edges.push_back(createBorderEdge(abv_it->second, vh, sf_map, d2));
           abv.erase(abv_it);
-          abv.insert(e.to_remove[0],vh);
+          abv.insert(std::make_pair(e.to_remove[0],vh));
         }
         else
         {
-          abv.insert(e.to_remove[0],vh);
-          abv.insert(e.to_insert[0],vh);
+          abv.insert(std::make_pair(e.to_remove[0],vh));
+          abv.insert(std::make_pair(e.to_insert[0],vh));
         }
       }
     }
@@ -196,8 +185,8 @@ void cob_surface::Merge<SurfaceT,Policy>::preprocess(SurfaceT* sf_map)
     {
       // First: use bucket to localize current vertex and update it
       sl_DataT* d;
-      if (!e.to_insert.empty()) d = &sl_.getData(e.to_insert[0]); vh = d->v1;
-      else                      d = &sl_.getData(e.to_remove[0]); vh = d->v2;
+      if (!e.to_insert.empty()) { d = &sl_.getData(e.to_insert[0]); vh = d->v1; }
+      else                      { d = &sl_.getData(e.to_remove[0]); vh = d->v2; }
 
       bool updated;
       if(d->sf==sf_map) updated = updateVertex(current_bucket,vh,sf_map);
@@ -219,13 +208,13 @@ void cob_surface::Merge<SurfaceT,Policy>::preprocess(SurfaceT* sf_map)
           typename ActiveBorderVertices::iterator abv_it = abv.find(*it);
           border_edges.push_back(createBorderEdge(abv_it->second, vh,
                                                   sf_map, sl_.getData(*it)));
-          adv.erase(abv_it);
+          abv.erase(abv_it);
         }
 
         for(it=e.to_insert.begin(); it!=e.to_insert.end(); ++it)
         { // if in insert list: add current vertex to ABV
           if (sl_.getData(*it).f2.is_valid()) continue;
-          abv.insert(*it, vh);
+          abv.insert(std::make_pair(*it, vh));
         }
       }
     }
@@ -246,7 +235,7 @@ void cob_surface::Merge<SurfaceT,Policy>::triangulate(
    */
   VertexHandle vh_left_most = v_vh[0];
   VertexHandle vh_right_most = v_vh[0];
-  std::vector<VertexHandle>::iterator vh_it;
+  typename std::vector<VertexHandle>::const_iterator vh_it;
   for(vh_it = v_vh.begin()+1; vh_it!=v_vh.end(); ++vh_it)
   {
     if (Policy::vertexLeftRightOrder(*vh_it, vh_left_most, sf_map))
@@ -255,9 +244,9 @@ void cob_surface::Merge<SurfaceT,Policy>::triangulate(
       vh_right_most = *vh_it;
   }
   Policy::createBoundingVertices(
-    sf_map, vh_left_most, vh_right_most, .3f, vh_left_most, vh_right_most);
+    sf_map, vh_left_most, vh_right_most, v_vh[0], .3f, vh_left_most, vh_right_most);
 
-  SweepLine::AdvancingFront<> af(sf_map);
+  SweepLine::AdvancingFront<SurfaceT,Policy> af(sf_map);
   af.initialize(vh_left_most, vh_right_most);
   for(vh_it = v_vh.begin(); vh_it!=v_vh.end(); ++vh_it)
     af.insertVertex(*vh_it);
@@ -274,13 +263,14 @@ void cob_surface::Merge<SurfaceT,Policy>::createEventForEdge(
   FaceHandle f1, f2;
   HalfedgeHandle heh1 = sf->halfedge_handle(eh,0);
   HalfedgeHandle heh2 = sf->halfedge_handle(eh,1);
-  VertexHandle v1 = sf->to_vertex(heh1);
-  VertexHandle v2 = sf->to_vertex(heh2);
+  VertexHandle v1 = sf->to_vertex_handle(heh1);
+  VertexHandle v2 = sf->to_vertex_handle(heh2);
   sl_DataId data_id;
-  SweepLineTraits::OperationType op;
+  
+  typename sl_Traits::OperationType op;
 
   // first make sure that v1 comes before v2:
-  if (SweepLinePolicy::stateCompare(projSpace(sf,v2), projSpace(sf,vh1)))
+  if (sl_Policy::stateCompare(projSpace(sf,v2), projSpace(sf,v1)))
   {
     std::swap(v1,v2);
     std::swap(heh1,heh2);
@@ -295,9 +285,9 @@ void cob_surface::Merge<SurfaceT,Policy>::createEventForEdge(
     f1 = sf->face_handle(heh2);
 
     if (calcFaceOrientation(sf,v1,v2,v32) < 0)
-      op = SweepLineTraits::DISABLE_SINGLE; // v32 on the left
+      op = sl_Traits::DISABLE_SINGLE; // v32 on the left
     else
-      op = SweepLineTraits::ENABLE_SINGLE; // v32 on the right
+      op = sl_Traits::ENABLE_SINGLE; // v32 on the right
   }
   else if (sf->is_boundary(heh2))
   { // in case heh2 is boundary, we only have on face and v3
@@ -306,16 +296,16 @@ void cob_surface::Merge<SurfaceT,Policy>::createEventForEdge(
     f1 = sf->face_handle(heh1);
 
     if (calcFaceOrientation(sf,v1,v2,v31) < 0)
-      op = SweepLineTraits::DISABLE_SINGLE; // v31 on the left
+      op = sl_Traits::DISABLE_SINGLE; // v31 on the left
     else
-      op = SweepLineTraits::ENABLE_SINGLE; // v31 on the right
+      op = sl_Traits::ENABLE_SINGLE; // v31 on the right
   }
   else
   { // else we have 2 faces, v31 and v32
     HalfedgeHandle heh31 = sf->next_halfedge_handle(heh1);
     HalfedgeHandle heh32 = sf->next_halfedge_handle(heh2);
-    VertexHandle v31 = sf->to_vertex(heh31);
-    VertexHandle v32 = sf->to_vertex(heh32);
+    VertexHandle v31 = sf->to_vertex_handle(heh31);
+    VertexHandle v32 = sf->to_vertex_handle(heh32);
 
     int state = int(calcFaceOrientation(sf,v1,v2,v31) < 0) << 1;
     state |= int(calcFaceOrientation(sf,v1,v2,v32) < 0);
@@ -324,11 +314,11 @@ void cob_surface::Merge<SurfaceT,Policy>::createEventForEdge(
     {
     case(0b11):
     { // v31: (-), v32: (-) -> both left to the edge
-      op = SweepLineTraits::DISABLE_DOUBLE; break;
+      op = sl_Traits::DISABLE_DOUBLE; break;
     }
     case(0b00):
     { // v31: (+), v32: (+) -> both right to the edge
-      op = SweepLineTraits::ENABLE_DOUBLE; break;
+      op = sl_Traits::ENABLE_DOUBLE; break;
     }
     case(0b01):
     { // v31: (+), v32: (-) -> v32 left, v31 right
@@ -336,7 +326,7 @@ void cob_surface::Merge<SurfaceT,Policy>::createEventForEdge(
     }
     case(0b10):
     { // v31: (-), v32: (+) -> v31 left, v32 right
-      ob = SweepLineTraits::SWITCH; break;
+      op = sl_Traits::SWITCH; break;
     }
     }
 
@@ -350,37 +340,42 @@ void cob_surface::Merge<SurfaceT,Policy>::createEventForEdge(
 }
 
 template<typename SurfaceT, typename Policy>
-void cob_surface::Merge<SurfaceT,Policy>::transformActiveTriangleBucket(
+void cob_surface::Merge<SurfaceT,Policy>::transformActiveTrianglesBucket(
   const sl_DataT& data, ActiveTrianglesBucket& bucket)
 {
   switch(data.op)
   {
-  case(ENABLE_DOUBLE): bucket.push_back(std::make_pair(data.sf,data.f2));
-  case(ENABLE_SINGLE): bucket.push_back(std::make_pair(data.sf,data.f1)); break;
-  case(DISABLE_DOUBLE):
+  case(sl_Traits::ENABLE_DOUBLE):
+    bucket.push_back(std::make_pair(data.sf,data.f2));
+  case(sl_Traits::ENABLE_SINGLE):
+    bucket.push_back(std::make_pair(data.sf,data.f1)); break;
+  case(sl_Traits::DISABLE_DOUBLE):
   {
-    typename ActiveTriangleBucket::iterator it;
-    for(it=bucket.begin();it!=bucket.end();++it)
+    typename ActiveTrianglesBucket::iterator it = bucket.begin();
+    while(it!=bucket.end())
     {
-      if(it->second == data.f1 || it->second == data.f2) bucket.erase(it);
+      if(it->second == data.f1 || it->second == data.f2) bucket.erase(it++);
+      else ++it;                                              
     }
     break;
   }
-  case(DISABLE_SINGLE):
+  case(sl_Traits::DISABLE_SINGLE):
   {
-    typename ActiveTriangleBucket::iterator it;
-    for(it=bucket.begin();it!=bucket.end();++it)
+    typename ActiveTrianglesBucket::iterator it = bucket.begin();
+    while(it!=bucket.end())
     {
-      if(it->second == data.f1) bucket.erase(it);
+      if(it->second == data.f1) bucket.erase(it++);
+      else ++it;
     }
     break;
   }
-  case(SWITCH):
+  case(sl_Traits::SWITCH):
   {
-    typename ActiveTriangleBucket::iterator it;
-    for(it=bucket.begin();it!=bucket.end();++it)
+    typename ActiveTrianglesBucket::iterator it = bucket.begin();
+    while(it!=bucket.end())
     {
-      if(it->second == data.f1) bucket.erase(it);
+      if(it->second == data.f1) bucket.erase(it++);
+      else ++it;
     }
     bucket.push_back(std::make_pair(data.sf,data.f2));
     break;
@@ -390,15 +385,15 @@ void cob_surface::Merge<SurfaceT,Policy>::transformActiveTriangleBucket(
 
 template<typename SurfaceT, typename Policy>
 bool cob_surface::Merge<SurfaceT,Policy>::updateVertex(
-  const ActiveTriangleBucket& bucket, VertexHandle& vh_map, SurfaceT* sf_map)
+  const ActiveTrianglesBucket& bucket, VertexHandle& vh_map, SurfaceT* sf_map)
 {
   // we search for the surface that belongs to the sensor (there is only one)
-  typename ActiveTrianglesBucket::iterator b_it;
+  typename ActiveTrianglesBucket::const_iterator b_it;
   for(b_it=bucket.begin(); b_it!=bucket.end(); ++b_it)
   {
     if (b_it->first != sf_map)
     { // update vh on sf_map with face b_it->second on b_it->first
-      return Policy::updateVertex(b_it->second, b_it->first, vh_map, sf_map)
+      return Policy::updateVertex(b_it->second, b_it->first, vh_map, sf_map);
     }
   }
   return false;
@@ -406,13 +401,13 @@ bool cob_surface::Merge<SurfaceT,Policy>::updateVertex(
 
 template<typename SurfaceT, typename Policy>
 bool cob_surface::Merge<SurfaceT,Policy>::createVertex(
-  const ActiveTriangleBucket& bucket,
+  const ActiveTrianglesBucket& bucket,
   const VertexHandle& vh_sensor, const SurfaceT* sf_sensor,
   VertexHandle& vh_map, SurfaceT* sf_map)
 {
   // we search for all active triangles that belong to the map surface
   std::vector<FaceHandle> triangles;
-  typename ActiveTrianglesBucket::iterator b_it;
+  typename ActiveTrianglesBucket::const_iterator b_it;
   for(b_it=bucket.begin(); b_it!=bucket.end(); ++b_it)
   {
     if (b_it->first == sf_map) triangles.push_back(b_it->second);

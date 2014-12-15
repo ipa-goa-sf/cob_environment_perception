@@ -88,27 +88,27 @@ namespace SweepLine
    * @tparam Policy - provides policies to manipulate the specified surface
    *
    */
-  template<typename Traits, typename Policy>
+  template<typename SurfaceT, typename Policy>
   class AdvancingFront
   {
   public:
-    typedef typename Traits::SurfaceT SurfaceT;
-    typedef typename Traits::VertexHandle VertexHandle;
-    typedef typename Traits::SurfaceT::Point PointT;
-
-    typedef typename std::set<VertexHandle,DelegateCompare>::iterator NodeIter;
-    
+    typedef typename SurfaceT::VertexHandle VertexHandle;
+    typedef typename SurfaceT::HalfedgeHandle HalfedgeHandle;
+    typedef typename SurfaceT::Point PointT;
+    typedef typename SurfaceT::ProjPoint ProjPoint;
 
     // delegates the compare operation of BST to definition by policy
     struct DelegateCompare
     {
       DelegateCompare(SurfaceT* sf) : sf_(sf) { }
       bool operator() (const VertexHandle& a, const VertexHandle& b) {
-        return Policy::vertexCompare(a,b,sf_);
+        return Policy::vertexLeftRightOrder(a,b,sf_);
       }
 
       SurfaceT* sf_;
     };
+
+    typedef typename std::set<VertexHandle, DelegateCompare>::iterator NodeIter;
 
   public:
     AdvancingFront(SurfaceT* sf)
@@ -153,7 +153,33 @@ namespace SweepLine
 
     void insertVertex(const VertexHandle& v);
 
-    void insertEdge(const VertexHandle& v1, const VertexHandle& v2);
+    /** 
+     * Checks if a new triangle n1->n2->n3 (CCW) needs to be created.
+     * if so, n1 is being deleted from AF, since it is now hidden by n2->n3
+     * It checks the angle between n1->n2 and n1->n3
+     * 
+     * @param n1 - The node that might be hidden by n2->n3
+     * @param n2 - Node 2
+     * @param n3 - Node 3
+     * 
+     * @return - returns true if we have to check the next one too
+     */
+    inline bool fixNeighbor(const NodeIter& n1,
+                            const NodeIter& n2,
+                            const NodeIter& n3)
+    {
+      ProjPoint p12 = projSpace(sf_,*n2) - projSpace(sf_,*n1);
+      ProjPoint p13 = projSpace(sf_,*n3) - projSpace(sf_,*n1);
+      if (p12.dot(p13) > 0)
+      {
+        sf_->add_face(*n1,*n2,*n3);
+        bst_.erase(n1);
+        return true;
+      }
+      return false;
+    }
+
+    //void insertEdge(const VertexHandle& v1, const VertexHandle& v2);
 
     inline float vertexPos(const PointT& v, const PointT& e, const PointT& p) {
       return e.cross(v-p).dot(p);

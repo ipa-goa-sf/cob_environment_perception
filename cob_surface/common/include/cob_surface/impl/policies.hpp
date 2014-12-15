@@ -65,18 +65,18 @@
 
 #include "cob_surface/geometry.h"
 
-template<typename Traits>
-static bool cob_surface::SweepLinePolicy<Traits>::dataCompare(
+template<typename SurfaceT, typename Traits>
+bool cob_surface::SweepLinePolicy<SurfaceT,Traits>::dataCompare(
   const DataT& a, const DataT& b, const StateT& state)
 {
   ValueT y = state[1];
-  if (a.op == SweepLineTraits::FAKE)
+  if (a.op == Traits::FAKE)
   {
     ValueT bx = (projSpace(b.sf,b.v1)[1] - y) * b.xy_ratio + projSpace(b.sf,b.v1)[0];
     return a.xy_ratio < bx;
   }
 
-  if (b.op == SweepLineTraits::FAKE)
+  if (b.op == Traits::FAKE)
   {
     ValueT ax = (projSpace(a.sf,a.v1)[1] - y) * a.xy_ratio + projSpace(a.sf,a.v1)[0];
     return ax < b.xy_ratio;
@@ -99,8 +99,8 @@ static bool cob_surface::SweepLinePolicy<Traits>::dataCompare(
   return ax < bx;
 }
 
-template<typename Traits>
-static bool cob_surface::SweepLinePolicy<Traits>::swapCheck(
+template<typename SurfaceT, typename Traits>
+bool cob_surface::SweepLinePolicy<SurfaceT,Traits>::swapCheck(
   const DataT& a, const DataT& b, StateT& state)
 {
   ValueT t,s;
@@ -115,7 +115,7 @@ static bool cob_surface::SweepLinePolicy<Traits>::dataCompare(
 {} */
 
 template<typename SurfaceT>
-static bool cob_surface::MergePolicy<SurfaceT>::updateVertex(
+bool cob_surface::MergePolicy<SurfaceT>::updateVertex(
   const FaceHandle& face, const SurfaceT* sf_sensor,
   VertexHandle& vh_map, SurfaceT* sf_map)
 {
@@ -129,12 +129,13 @@ static bool cob_surface::MergePolicy<SurfaceT>::updateVertex(
   // the following update should be replaced by a kalman filter update:
   PointT p_sensor = u * mapSpace(sf_sensor,vh1) + 
     v * mapSpace(sf_sensor,vh2) + w * mapSpace(sf_sensor,vh3);
-  mapSpace(sf_map,vh_map) += p_senor;
+  mapSpace(sf_map,vh_map) += p_sensor;
   mapSpace(sf_map,vh_map) *= .5;
+  return true;
 }
 
 template<typename SurfaceT>
-static bool cob_surface::MergePolicy<SurfaceT>::createVertex(
+bool cob_surface::MergePolicy<SurfaceT>::createVertex(
   const VertexHandle& vh_sensor, const SurfaceT* sf_sensor,
   const std::vector<FaceHandle>& triangles, VertexHandle& vh_map, SurfaceT* sf_map)
 {
@@ -156,15 +157,26 @@ static bool cob_surface::MergePolicy<SurfaceT>::createVertex(
     if (dist < min_dist) { min_dist = dist; min_idx = i; }
   }
   // the following update should be replaced by a kalman filter update:
-  vh_map = sf_map.add_vertex( .5*(p_map[min_idx] + mapSpace(sf_sensor,vh_sensor)) );
+  bool updated;
+  if (min_dist < 100.)
+  {
+    vh_map = sf_map->add_vertex( .5*(p_map[min_idx] + mapSpace(sf_sensor,vh_sensor)) );
+    updated = true;
+  }
+  else
+  {
+    vh_map = sf_map->add_vertex( mapSpace(sf_sensor,vh_sensor) );
+    updated = false;
+  }
   projSpace(sf_map,vh_map) = projSpace(sf_sensor,vh_sensor);
+  return updated;
 }
 
 template<typename SurfaceT>
-static VertexHandle cob_surface::MergePolicy<SurfaceT>::createIntersection(
+typename SurfaceT::VertexHandle cob_surface::MergePolicy<SurfaceT>::createIntersection(
   const SurfaceT* sf1, const VertexHandle& vh11, const VertexHandle& vh12,
   const SurfaceT* sf2, const VertexHandle& vh21, const VertexHandle& vh22,
-  const StateT& p_proj, SurfaceT* sf_map)
+  const ProjPoint& p_proj, SurfaceT* sf_map)
 {
   if (sf1 == sf2) return VertexHandle(); // return invalid vh
   // TODO: test whether new intersection computation is actually faster
@@ -179,7 +191,7 @@ static VertexHandle cob_surface::MergePolicy<SurfaceT>::createIntersection(
 }
 
 template<typename SurfaceT>
-static bool cob_surface::MergePolicy<SurfaceT>::vertexLeftRightOrder(
+bool cob_surface::MergePolicy<SurfaceT>::vertexLeftRightOrder(
   const VertexHandle& vh1, const VertexHandle& vh2, const SurfaceT* sf_map)
 {
   return projSpace(sf_map,vh1)[0] < projSpace(sf_map,vh2)[0];
@@ -187,19 +199,23 @@ static bool cob_surface::MergePolicy<SurfaceT>::vertexLeftRightOrder(
 }
 
 template<typename SurfaceT>
-static void cob_surface::MergePolicy<SurfaceT>::createBoundingVertices(
-  SurfaceT* sf_map, const VertexHandle& vh_left, const VertexHandle& vh_right,
+void cob_surface::MergePolicy<SurfaceT>::createBoundingVertices(
+  SurfaceT* sf_map, 
+  const VertexHandle& vh_left,
+  const VertexHandle& vh_right,
+  const VertexHandle& vh_up,
   float alpha, VertexHandle& vh_left_bounding, VertexHandle& vh_right_bounding)
 {
   ScalarT xmin = projSpace(sf_map,vh_left)[0];
   ScalarT xmax = projSpace(sf_map,vh_right)[0];
+  ScalarT ymin = projSpace(sf_map,vh_up)[1];
   ScalarT d = alpha*(xmax - xmin);
-  vh_left_bounding = sf_map.add_vertex();
+  vh_left_bounding = sf_map->add_vertex(PointT(0,0,0));
   projSpace(sf_map,vh_left_bounding)[0] = xmin - d;
-  projSpace(sf_map,vh_left_bounding)[1] = ??;
-  vh_right_bounding = sf_map.add_vertex();
+  projSpace(sf_map,vh_left_bounding)[1] = ymin;
+  vh_right_bounding = sf_map->add_vertex(PointT(0,0,0));
   projSpace(sf_map,vh_right_bounding)[0] = xmax + d;
-  projSpace(sf_map,vh_right_bounding)[1] = ??;
+  projSpace(sf_map,vh_right_bounding)[1] = ymin;
 }
 
 #endif

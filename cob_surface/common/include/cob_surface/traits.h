@@ -70,10 +70,12 @@ namespace cob_surface
   template<typename SurfaceT>
   struct SweepLineTraits
   {
-    typedef float ValueT;
-    typedef Eigen::Matrix<ValueT, 2, 1> StateT;
-    typedef typename SurfaceT::VertexHandle;
-    typedef typename SurfaceT::FaceHandle;
+    typedef typename SurfaceT::Scalar ValueT;
+    typedef typename SurfaceT::ProjPoint StateT;
+    typedef typename SurfaceT::VertexHandle VertexHandle;
+    typedef typename SurfaceT::FaceHandle FaceHandle;
+    typedef typename SurfaceT::HalfedgeHandle HalfedgeHandle;
+
 
     /* Definition of operations for the active triangle list.
      *
@@ -96,7 +98,7 @@ namespace cob_surface
     struct DataT
     {
       DataT() {}
-      DataT(SurfaceT* sf_, const VertexHandle& v1_, const VertexHandle& v2_,
+      DataT(const SurfaceT* sf_, const VertexHandle& v1_, const VertexHandle& v2_,
             OperationType op_, const FaceHandle& f1_, const FaceHandle& f2_)
         : sf(sf_), v1(v1_), v2(v2_), op(op_), f1(f1_), f2(f2_)
       {
@@ -104,7 +106,7 @@ namespace cob_surface
         xy_ratio = - d[0] / d[1];
       }
 
-      SurfaceT* sf;
+      const SurfaceT* sf;
       VertexHandle v1; //< upper vertex
       VertexHandle v2; //< lower vertex
       OperationType op;

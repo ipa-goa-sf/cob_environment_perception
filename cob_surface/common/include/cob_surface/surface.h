@@ -64,11 +64,25 @@
 #define COB_SURFACE_SURFACE_H
 
 #include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+
+namespace std
+{
+  template<>
+  struct hash<OpenMesh::VertexHandle>
+  {
+    std::size_t operator() (const OpenMesh::VertexHandle& key) const
+    {
+      return std::hash<int>()(key.idx());
+    }
+  };
+}
 
 namespace OpenMesh
 {
   template<>
-  struct vector_traits<Eigen::Vector3f>
+  struct vector_traits<Eigen::Matrix<float,3,1> >
   {
     typedef float value_type;
     typedef Eigen::Matrix<value_type,3,1> vector_type;
@@ -82,7 +96,7 @@ namespace cob_surface
   // defines surface data structure
   struct DataStructure : public OpenMesh::DefaultTraits
   {
-    typedef Eigen::Vector3f Point; // point in map space
+    typedef Eigen::Matrix<float,3,1> Point; // point in map space
     //typedef OpenMesh::Vec3f  Normal;
     //typedef OpenMesh::Vec2f  TexCoord;
     //typedef OpenMesh::Vec3uc Color;
@@ -91,8 +105,8 @@ namespace cob_surface
     {
     public:
       Eigen::Vector2f proj_point; // point in projection space
-      Eigen::Quaternion<float> q; // rotation of covariance
-      Eigen::Vector3f s; // eigenvalues -> Scale: s_.asDiagonal()
+      //Eigen::Quaternion<float> q; // rotation of covariance
+      //Eigen::Vector3f s; // eigenvalues -> Scale: s_.asDiagonal()
     };
     //HalfedgeTraits  {};
     //EdgeTraits      {};
@@ -105,7 +119,12 @@ namespace cob_surface
   };
 
   // define surface data type
-  typedef OpenMesh::TriMesh_ArrayKernelT<DataStructure> Surface;
+  //typedef OpenMesh::TriMesh_ArrayKernelT<DataStructure> Surface;
+  struct Surface : OpenMesh::TriMesh_ArrayKernelT<DataStructure>
+  {
+    typedef OpenMesh::TriMesh_ArrayKernelT<DataStructure> BaseT;
+    typedef Eigen::Matrix<typename BaseT::Scalar,2,1> ProjPoint;
+  };
 
   /** 
    * returns the point of VertexHandle vh in projection space
@@ -116,13 +135,13 @@ namespace cob_surface
    * @return point in projection space
    */
   template<typename SurfaceT>
-  inline Eigen::Vector2f& projSpace(
+  inline typename SurfaceT::ProjPoint& projSpace(
     SurfaceT* sf, const typename SurfaceT::VertexHandle& vh) {
     return sf->data(vh).proj_point;
   }
 
   template<typename SurfaceT>
-  inline const Eigen::Vector2f& projSpace(
+  inline const typename SurfaceT::ProjPoint& projSpace(
     const SurfaceT* sf, const typename SurfaceT::VertexHandle& vh) {
     return sf->data(vh).proj_point;
   }
@@ -136,18 +155,28 @@ namespace cob_surface
    * @return point in map space
    */
   template<typename SurfaceT>
-  inline Eigen::Vector3f& mapSpace(
+  inline typename SurfaceT::Point& mapSpace(
     SurfaceT* sf, const typename SurfaceT::VertexHandle& vh) {
     return sf->point(vh);
   }
 
   template<typename SurfaceT>
-  inline const Eigen::Vector3f& mapSpace(
+  inline const typename SurfaceT::Point& mapSpace(
     const SurfaceT* sf, const typename SurfaceT::VertexHandle& vh) {
     return sf->point(vh);
   }
-  
-    
+
+  template<typename SurfaceT>
+  void transformToProjSpace(SurfaceT* sf,
+                            const Eigen::Affine3f& tf = Eigen::Affine3f::Identity())
+  {
+    typename SurfaceT::VertexIter v_it = sf->vertices_begin();
+    for (; v_it != sf->vertices_end(); ++v_it)
+    {
+      typename SurfaceT::Point p = tf * mapSpace(sf,*v_it);
+      projSpace(sf,*v_it) = p.template head<2>();
+    }
+  }
 
   /** 
    * Returns first or second vertex handle of an edge handle
@@ -184,9 +213,9 @@ namespace cob_surface
     typename SurfaceT::VertexHandle& vh3)
   {
     typename SurfaceT::HalfedgeHandle heh = sf->halfedge_handle(fh);
-    vh1 = sf->to_vertex(heh); heh = sf->next_halfedge_handle(heh);
-    vh2 = sf->to_vertex(heh); heh = sf->next_halfedge_handle(heh);
-    vh3 = sf->to_vertex(heh);
+    vh1 = sf->to_vertex_handle(heh); heh = sf->next_halfedge_handle(heh);
+    vh2 = sf->to_vertex_handle(heh); heh = sf->next_halfedge_handle(heh);
+    vh3 = sf->to_vertex_handle(heh);
   }
 
   /** 
@@ -198,19 +227,20 @@ namespace cob_surface
    * @param v2 - vertex handle that forms desired face
    * @param v3 - vertex handle that forms desired face
    * 
-   * @return <0 if oriented towards origin, else >0
+   * @return <0 if CCW, >0 if CW
    */
   template<typename SurfaceT>
-  inline typename float calcFaceOrientation(
-    const SurfaceT& sf,
+  inline typename SurfaceT::Scalar calcFaceOrientation(
+    const SurfaceT* sf,
     const typename SurfaceT::VertexHandle& v1,
     const typename SurfaceT::VertexHandle& v2,
     const typename SurfaceT::VertexHandle& v3)
   {
-    const typename SurfaceT::Point& p1 = sf.point(v1);
-    const typename SurfaceT::Point& p2 = sf.point(v2);
-    const typename SurfaceT::Point& p3 = sf.point(v3);
-    return (p3-p1).cross(p2-p1).dot(p1);
+    const typename SurfaceT::ProjPoint& p1 = projSpace(sf,v1);
+    const typename SurfaceT::ProjPoint& p2 = projSpace(sf,v2);
+    const typename SurfaceT::ProjPoint& p3 = projSpace(sf,v3);
+    return (p2[0] - p1[0])*(p2[1] + p1[1]) + (p3[0] - p2[0])*(p3[1] + p2[1]);
+    //return (p3-p1).cross(p2-p1).dot(p1);
   }
 }
 

@@ -68,6 +68,7 @@
  */
 
 #include "cob_surface/surface.h"
+#include "cob_surface/traits.h"
 
 namespace cob_surface
 {
@@ -92,13 +93,12 @@ namespace cob_surface
   };
 
   // define policy for using SweepLineProcess on surface class
-  template<Traits = SweepLineTraits>
+  template<typename SurfaceT, typename Traits=SweepLineTraits<SurfaceT> >
   struct SweepLinePolicy
   {
     typedef typename Traits::ValueT ValueT;
     typedef typename Traits::DataT DataT;
     typedef typename Traits::StateT StateT;
-    typedef typename Traits::SurfaceT SurfaceT;
     /** 
      * Determines the order between two states a and b
      * 
@@ -144,7 +144,7 @@ namespace cob_surface
      */
     inline static void dataForLocalization(const StateT& state, DataT& out)
     {
-      out.op = SweepLineTraits::FAKE;
+      out.op = Traits::FAKE;
       out.xy_ratio = state[0];
     }
 
@@ -166,6 +166,7 @@ namespace cob_surface
   {
     typedef typename SurfaceT::Scalar ScalarT;
     typedef typename SurfaceT::Point PointT;
+    typedef typename SurfaceT::ProjPoint ProjPoint;
     typedef typename SurfaceT::VertexHandle VertexHandle;
     typedef typename SurfaceT::FaceHandle FaceHandle;    
 
@@ -189,7 +190,7 @@ namespace cob_surface
       const SurfaceT* sf2,
       const VertexHandle& vh21,
       const VertexHandle& vh22,
-      const StateT& p_proj,
+      const ProjPoint& p_proj,
       SurfaceT* sf_map);
 
     /** 
@@ -210,6 +211,7 @@ namespace cob_surface
       SurfaceT* sf_map,      
       const VertexHandle& vh_left,
       const VertexHandle& vh_right,
+      const VertexHandle& vh_up,
       float alpha,
       VertexHandle& vh_left_bounding,
       VertexHandle& vh_right_bounding);

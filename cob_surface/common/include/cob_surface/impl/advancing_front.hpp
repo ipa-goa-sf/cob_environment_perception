@@ -63,41 +63,41 @@
 #ifndef COB_SURFACE_ADVANCING_FRONT_HPP
 #define COB_SURFACE_ADVANCING_FRONT_HPP
 
-template<typename Traits, typename Policy>
+template<typename SurfaceT, typename Policy>
 template<typename IteratorT>
-void SweepLine::AdvancingFront<Traits,Policy>::finalize(
+void SweepLine::AdvancingFront<SurfaceT,Policy>::finalize(
   const IteratorT& begin, const IteratorT& end)
 {
 
 }
 
-template<typename Traits, typename Policy>
-void SweepLine::AdvancingFront<Traits,Policy>::insertVertex(
+template<typename SurfaceT, typename Policy>
+void SweepLine::AdvancingFront<SurfaceT,Policy>::insertVertex(
   const VertexHandle& v)
 {
   NodeIter r = bst_.upper_bound(v);
   NodeIter l = leftNeighbor(r);
   sf_->add_face(v, *r, *l);
-  bst_.insert(r,v);
+  NodeIter x = bst_.insert(r,v);
 
   NodeIter tmp = rightNeighbor(r);
-  bool valid_angle = false;
-  while(tmp != bst_.end() && !valid_angle)
+  bool fix_needed = true;
+  while(tmp != bst_.end() && fix_needed)
   {
-    valid_angle = fixNeighbor(v,tmp,r);
+    fix_needed = fixNeighbor(r,x,tmp);
     r = tmp++;
   }
 
-  valid_angle = false;
-  while(l != bst_.begin() && !valid_angle)
+  fix_needed = true;
+  while(l != bst_.begin() && fix_needed)
   {
     tmp = leftNeighbor(l);
-    valid_angle = fixNeighbor(v,l,tmp);
+    fix_needed = fixNeighbor(l,tmp,x);
   }
 }
-
-template<typename Traits, typename Policy>
-void SweepLine::AdvancingFront<Traits,Policy>::insertEdge(
+/*
+template<typename SurfaceT, typename Policy>
+void SweepLine::AdvancingFront<SurfaceT,Policy>::insertEdge(
   const VertexHandle& v1, const VertexHandle& v2)
 {
   insertVertex(v1);
@@ -121,8 +121,8 @@ void SweepLine::AdvancingFront<Traits,Policy>::insertEdge(
   // if it lies below the edge -> intersection -> switch to triangle traversal
 
 
-template<typename Traits, typename Policy>
-void SweepLine::AdvancingFront<Traits,Policy>::fixEdgeRightMode(
+template<typename SurfaceT, typename Policy>
+void SweepLine::AdvancingFront<SurfaceT,Policy>::fixEdgeRightMode(
   const VertexHandle& v1, const VertexHandle& v2)
 {
   std::vector<VertexHandle> upper_vertices, lower_vertices;
@@ -210,8 +210,8 @@ void SweepLine::AdvancingFront<Traits,Policy>::fixEdgeRightMode(
   // now retriangulate upper and lower vertices
 }
 
-template<typename Traits, typename Policy>
-void SweepLine::AdvancingFront<Traits,Policy>::fixEdgeLeftMode(
+template<typename SurfaceT, typename Policy>
+void SweepLine::AdvancingFront<SurfaceT,Policy>::fixEdgeLeftMode(
   const VertexHandle& v1, const VertexHandle& v2)
 {
   std::vector<VertexHandle> upper_vertices, lower_vertices;
@@ -298,6 +298,6 @@ void SweepLine::AdvancingFront<Traits,Policy>::fixEdgeLeftMode(
 
   // now retriangulate upper and lower vertices
 }
-
+*/
 
 #endif
