@@ -132,10 +132,10 @@ namespace cob_surface
       bool denomPositive = denom > 0;
 
       PointT sab = a2 - b2;
-      ScalarT s_numer = sa[0]*sab[1] - sb[1]*sab[0];
+      ScalarT s_numer = sa[0]*sab[1] - sa[1]*sab[0];
       if ((s_numer < 0) == denomPositive) return false; // No collision
 
-      ScalarT t_numer = sb[0]*sab[1] - sa[1]*sab[0];
+      ScalarT t_numer = sb[0]*sab[1] - sb[1]*sab[0];
       if ((t_numer < 0) == denomPositive) return false; // No collision
 
       if (((s_numer > denom) == denomPositive) || ((t_numer > denom) == denomPositive))

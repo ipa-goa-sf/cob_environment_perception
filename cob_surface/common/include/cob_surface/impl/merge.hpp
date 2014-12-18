@@ -123,11 +123,13 @@ void cob_surface::Merge<SurfaceT,Policy>::preprocess(
   ActiveBorderVertices abv;
   points_to_triangulate.clear();
   border_edges.clear();
-
+  std::vector<typename sl_Traits::StateT> states;
   std::vector<sl_DataId>::iterator it;
   while (sl_.nextEvent())
   {
     e = sl_.getCurrentEvent();
+    states.push_back(e.state);
+    continue;
 
     // first: erase all buckets that resulted from recently removed edges
     for(it=e.to_remove.begin(); it!=e.to_remove.end(); ++it) atm.erase(*it);
@@ -220,6 +222,7 @@ void cob_surface::Merge<SurfaceT,Policy>::preprocess(
     }
     if (vh.is_valid()) points_to_triangulate.push_back(vh);
   }
+  std::cout << "done" << std::endl;
 }
 
 template<typename SurfaceT, typename Policy>

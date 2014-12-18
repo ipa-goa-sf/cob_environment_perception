@@ -72,25 +72,25 @@ bool cob_surface::SweepLinePolicy<SurfaceT,Traits>::dataCompare(
   ValueT y = state[1];
   if (a.op == Traits::FAKE)
   {
-    ValueT bx = (projSpace(b.sf,b.v1)[1] - y) * b.xy_ratio + projSpace(b.sf,b.v1)[0];
+    ValueT bx = (y - projSpace(b.sf,b.v2)[1]) * b.xy_ratio + projSpace(b.sf,b.v2)[0];
     return a.xy_ratio < bx;
   }
 
   if (b.op == Traits::FAKE)
   {
-    ValueT ax = (projSpace(a.sf,a.v1)[1] - y) * a.xy_ratio + projSpace(a.sf,a.v1)[0];
+    ValueT ax = (y - projSpace(a.sf,a.v2)[1]) * a.xy_ratio + projSpace(a.sf,a.v2)[0];
     return ax < b.xy_ratio;
   }
 
   // a & b are both starting edges at the same vertex
-  if (a.v1 == b.v1)
+  if (projSpace(a.sf,a.v1) == projSpace(b.sf,b.v1))
     return projSpace(a.sf,a.v2)[0] < projSpace(b.sf,b.v2)[0];
 
 
   // intersection of y at a:
-  ValueT ax = (projSpace(a.sf,a.v1)[1] - y) * a.xy_ratio + projSpace(a.sf,a.v1)[0];
+  ValueT ax = (y - projSpace(a.sf,a.v2)[1]) * a.xy_ratio + projSpace(a.sf,a.v2)[0];
   // intersection of y at b:
-  ValueT bx = (projSpace(b.sf,b.v1)[1] - y) * b.xy_ratio + projSpace(b.sf,b.v1)[0];
+  ValueT bx = (y - projSpace(b.sf,b.v2)[1]) * b.xy_ratio + projSpace(b.sf,b.v2)[0];
   if (ax == bx)
   {
     std::cout << "dataCompare: swap point " << std::endl;
@@ -104,9 +104,14 @@ bool cob_surface::SweepLinePolicy<SurfaceT,Traits>::swapCheck(
   const DataT& a, const DataT& b, StateT& state)
 {
   ValueT t,s;
+  StateT a2 = projSpace(a.sf,a.v2);
+  StateT b2 = projSpace(b.sf,b.v2);
+  if (a2 == b2) return false; // same end point
+  // assuming start points a1 and b1 are always different
+  // else we would have a common insert event
   return Geometry::lineLineIntersection(
-    projSpace(a.sf,a.v1), projSpace(a.sf,a.v2),
-    projSpace(b.sf,b.v1), projSpace(b.sf,b.v2), state, t, s);
+    projSpace(a.sf,a.v1), a2,
+    projSpace(b.sf,b.v1), b2, state, t, s);
 }
 
 /*template<typename Traits>

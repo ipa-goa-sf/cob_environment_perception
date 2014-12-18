@@ -103,7 +103,7 @@ namespace cob_surface
         : sf(sf_), v1(v1_), v2(v2_), op(op_), f1(f1_), f2(f2_)
       {
         StateT d = projSpace(sf_,v1_) - projSpace(sf_,v2_);
-        xy_ratio = - d[0] / d[1];
+        xy_ratio = d[0] / d[1];
       }
 
       const SurfaceT* sf;
