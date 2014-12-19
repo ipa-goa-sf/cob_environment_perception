@@ -129,7 +129,6 @@ void cob_surface::Merge<SurfaceT,Policy>::preprocess(
   {
     e = sl_.getCurrentEvent();
     states.push_back(e.state);
-    continue;
 
     // first: erase all buckets that resulted from recently removed edges
     for(it=e.to_remove.begin(); it!=e.to_remove.end(); ++it) atm.erase(*it);
@@ -208,6 +207,7 @@ void cob_surface::Merge<SurfaceT,Policy>::preprocess(
         { // if in remove list: create edge and erase from ABV
           if (sl_.getData(*it).f2.is_valid()) continue;
           typename ActiveBorderVertices::iterator abv_it = abv.find(*it);
+          if (abv_it == abv.end()) continue;
           border_edges.push_back(createBorderEdge(abv_it->second, vh,
                                                   sf_map, sl_.getData(*it)));
           abv.erase(abv_it);
@@ -253,7 +253,11 @@ void cob_surface::Merge<SurfaceT,Policy>::triangulate(
   af.initialize(vh_left_most, vh_right_most);
   for(vh_it = v_vh.begin(); vh_it!=v_vh.end(); ++vh_it)
     af.insertVertex(*vh_it);
-  
+
+  sf_map->delete_vertex(vh_left_most,false);
+  sf_map->delete_vertex(vh_right_most,false);
+  sf_map->garbage_collection();
+  // TODO: delete faces and bounding vertices
 }
 
 template<typename SurfaceT, typename Policy>
@@ -287,7 +291,7 @@ void cob_surface::Merge<SurfaceT,Policy>::createEventForEdge(
     VertexHandle v32 = sf->to_vertex_handle(heh32);
     f1 = sf->face_handle(heh2);
 
-    if (calcFaceOrientation(sf,v1,v2,v32) < 0)
+    if (areaFace(sf,v1,v2,v32) > 0)
       op = sl_Traits::DISABLE_SINGLE; // v32 on the left
     else
       op = sl_Traits::ENABLE_SINGLE; // v32 on the right
@@ -298,7 +302,7 @@ void cob_surface::Merge<SurfaceT,Policy>::createEventForEdge(
     VertexHandle v31 = sf->to_vertex_handle(heh31);
     f1 = sf->face_handle(heh1);
 
-    if (calcFaceOrientation(sf,v1,v2,v31) < 0)
+    if (areaFace(sf,v1,v2,v31) > 0)
       op = sl_Traits::DISABLE_SINGLE; // v31 on the left
     else
       op = sl_Traits::ENABLE_SINGLE; // v31 on the right
@@ -310,31 +314,32 @@ void cob_surface::Merge<SurfaceT,Policy>::createEventForEdge(
     VertexHandle v31 = sf->to_vertex_handle(heh31);
     VertexHandle v32 = sf->to_vertex_handle(heh32);
 
-    int state = int(calcFaceOrientation(sf,v1,v2,v31) < 0) << 1;
-    state |= int(calcFaceOrientation(sf,v1,v2,v32) < 0);
+    int state = int(areaFace(sf,v1,v31,v2) > 0) << 1;
+    state |= int(areaFace(sf,v1,v2,v32) > 0);
 
     switch(state)
     {
-    case(0b11):
-    { // v31: (-), v32: (-) -> both left to the edge
+    case(0b01):
+    { // v31: (+), v32: (-) -> cw/ccw -> both left to the edge
       op = sl_Traits::DISABLE_DOUBLE; break;
     }
-    case(0b00):
-    { // v31: (+), v32: (+) -> both right to the edge
+    case(0b10):
+    { // v31: (-), v32: (+) -> ccw/cw -> both right to the edge
       op = sl_Traits::ENABLE_DOUBLE; break;
     }
-    case(0b01):
-    { // v31: (+), v32: (-) -> v32 left, v31 right
+    case(0b00):
+    { // v31: (+), v32: (+) -> both cw -> v32 right, v31 left
+      // this is actually the case when we look from behind (needs some validation)
       std::swap(heh31,heh32); // fall through
     }
-    case(0b10):
-    { // v31: (-), v32: (+) -> v31 left, v32 right
+    case(0b11):
+    { // v31: (-), v32: (-) -> both ccw -> v32 left, v31 right
       op = sl_Traits::SWITCH; break;
     }
     }
 
-    f1 = sf->face_handle(heh31);
-    f2 = sf->face_handle(heh32);
+    f1 = sf->face_handle(heh32); // turn off T(v1,v2,v32)
+    f2 = sf->face_handle(heh31); // turn on T(v1,v31,v2)
   }
 
   data_id = sl_.addData(sl_DataT(sf, v1, v2, op, f1, f2));
@@ -382,6 +387,10 @@ void cob_surface::Merge<SurfaceT,Policy>::transformActiveTrianglesBucket(
     }
     bucket.push_back(std::make_pair(data.sf,data.f2));
     break;
+  }
+  case(sl_Traits::FAKE):
+  {
+    assert(data.op != sl_Traits::FAKE);
   }
   }
 }

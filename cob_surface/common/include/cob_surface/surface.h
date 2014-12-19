@@ -66,6 +66,7 @@
 #include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include "cob_surface/geometry.h"
 
 namespace std
 {
@@ -112,9 +113,9 @@ namespace cob_surface
     //EdgeTraits      {};
     //FaceTraits      {};
 
-    //VertexAttributes(0);
+    VertexAttributes(OpenMesh::Attributes::Status);
     HalfedgeAttributes(OpenMesh::Attributes::PrevHalfedge);
-    //EdgeAttributes(0);
+    EdgeAttributes(OpenMesh::Attributes::Status);
     FaceAttributes(OpenMesh::Attributes::Status);
   };
 
@@ -219,28 +220,24 @@ namespace cob_surface
   }
 
   /** 
-   * computes the orientation of the face formed by vertices v1,v2,v3
-   * as (v3-v1)x(v2-v1)*v1 with respect to (0,0,0)
+   * computes the 2*area of the face formed by vertices v1,v2,v3
    * 
    * @param sf - surface that holdes handles of v1,v2,v3
    * @param v1 - vertex handle that forms desired face
    * @param v2 - vertex handle that forms desired face
    * @param v3 - vertex handle that forms desired face
    * 
-   * @return <0 if CCW, >0 if CW
+   * @return >0 if CCW, <0 if CW
    */
   template<typename SurfaceT>
-  inline typename SurfaceT::Scalar calcFaceOrientation(
+  inline typename SurfaceT::Scalar areaFace(
     const SurfaceT* sf,
     const typename SurfaceT::VertexHandle& v1,
     const typename SurfaceT::VertexHandle& v2,
     const typename SurfaceT::VertexHandle& v3)
   {
-    const typename SurfaceT::ProjPoint& p1 = projSpace(sf,v1);
-    const typename SurfaceT::ProjPoint& p2 = projSpace(sf,v2);
-    const typename SurfaceT::ProjPoint& p3 = projSpace(sf,v3);
-    return (p2[0] - p1[0])*(p2[1] + p1[1]) + (p3[0] - p2[0])*(p3[1] + p2[1]);
-    //return (p3-p1).cross(p2-p1).dot(p1);
+    return Geometry::areaTriangle<typename SurfaceT::Scalar>(
+      projSpace(sf,v1),projSpace(sf,v2),projSpace(sf,v3));
   }
 }
 

@@ -133,7 +133,7 @@ namespace cob_surface
      * 
      * @return - returns true if a commes before b
      */
-    //static bool dataCompare(const DataT& a, const DataT& b);
+    static bool dataCompare(const DataT& a, const DataT& b);
 
     /** 
      * Creates a dummy data set that allows to locate a state within bst

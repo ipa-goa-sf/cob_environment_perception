@@ -124,16 +124,21 @@ namespace SweepLine
         return Policy::dataCompare(p->getData(p->getDataId(a)),
                                    p->getData(p->getDataId(b)), p->state_);
       }
-      /*
-      bool operator() (DataId a, DataId b)
-      {
-        return Policy::dataCompare(p->getData(a), p->getData(b));
-        }*/
-
       SweepLineProcess<Traits,Policy>* p; ///< pointer to parent
     };
 
     typedef typename std::set<NodeId,DelegateCompare>::iterator NodeIter;
+
+    // delegates the compare operation of BST to definition by policy
+    struct DelegateCompareEventData
+    {
+      DelegateCompareEventData(SweepLineProcess<Traits,Policy>* sl) : p(sl) { }
+      bool operator() (DataId a, DataId b)
+      {
+        return Policy::dataCompare(p->getData(a), p->getData(b));
+      }
+      SweepLineProcess<Traits,Policy>* p; ///< pointer to parent
+    };
 
   public:
     SweepLineProcess() : bst_(DelegateCompare(this)) { }
@@ -185,8 +190,10 @@ namespace SweepLine
       if(!data_is_sorted)
       {
         EventT e = event;
-        std::sort(e.to_insert.begin(), e.to_insert.end(), DelegateCompare(this));
-        std::sort(e.to_remove.begin(), e.to_remove.end(), DelegateCompare(this));
+        std::sort(e.to_insert.begin(), e.to_insert.end(),
+                  DelegateCompareEventData(this));
+        std::sort(e.to_remove.begin(), e.to_remove.end(),
+                  DelegateCompareEventData(this));
         event_schedule_.push(e);
       }
       else

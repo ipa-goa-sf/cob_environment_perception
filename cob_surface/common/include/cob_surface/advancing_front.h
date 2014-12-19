@@ -158,7 +158,7 @@ namespace SweepLine
      * if so, n1 is being deleted from AF, since it is now hidden by n2->n3
      * It checks the angle between n1->n2 and n1->n3
      * 
-     * @param n1 - The node that might be hidden by n2->n3
+     * @param n1 - The node that might be hidden by n2->n3, becomes invalid
      * @param n2 - Node 2
      * @param n3 - Node 3
      * 

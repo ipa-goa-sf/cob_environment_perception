@@ -77,22 +77,23 @@ void SweepLine::AdvancingFront<SurfaceT,Policy>::insertVertex(
 {
   NodeIter r = bst_.upper_bound(v);
   NodeIter l = leftNeighbor(r);
-  sf_->add_face(v, *r, *l);
+  sf_->add_face(v, *l, *r);
   NodeIter x = bst_.insert(r,v);
 
   NodeIter tmp = rightNeighbor(r);
   bool fix_needed = true;
   while(tmp != bst_.end() && fix_needed)
   {
-    fix_needed = fixNeighbor(r,x,tmp);
+    fix_needed = fixNeighbor(r,tmp,x);
     r = tmp++;
   }
 
   fix_needed = true;
-  while(l != bst_.begin() && fix_needed)
+  tmp = l;
+  while(tmp != bst_.begin() && fix_needed)
   {
-    tmp = leftNeighbor(l);
-    fix_needed = fixNeighbor(l,tmp,x);
+    l = tmp--;
+    fix_needed = fixNeighbor(l,x,tmp);
   }
 }
 /*

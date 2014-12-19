@@ -120,8 +120,7 @@ bool SweepLine::SweepLineProcess<Traits,Policy>::nextEvent()
 
   // order: lnd <-> lnd_new <-> more nodes <-> rnd_new <-> rnd
   NodeIter lnd, lnd_new, rnd_new, rnd;
-  DataId d1, d2, d3, d4;
-  DataPairId pId;
+  DataId d2, d3;
 
   std::pair<bool,bool> valid_neighbors;
   StateT state_new;
@@ -253,7 +252,7 @@ std::pair<bool,bool> SweepLine::SweepLineProcess<Traits,Policy>::remove(
   }
   right = nd;
   bool valid_left;
-  if(valid_left = (right != bst_.begin())) left = --nd;
+  if( (valid_left = (right != bst_.begin())) ) left = --nd;
   else left = nd;
 
   return std::make_pair(valid_left, right != bst_.end());

@@ -145,7 +145,22 @@ namespace cob_surface
       s = s_numer / denom;
       x = a2 + t * sa;
       return true;
-    }                         
+    }
+
+    /** 
+     * computes 2*area of triangle T(abc)
+     * 
+     * @param a 
+     * @param b 
+     * @param c 
+     * 
+     * @return 2*area > 0 if T(abc) CCW, 2*area < 0 if T(abc) CW
+     */
+    template<typename ScalarT, typename PointT>
+    inline ScalarT areaTriangle(const PointT& a, const PointT& b, const PointT& c)
+    {
+      return (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]);
+    }
   }
 }
 

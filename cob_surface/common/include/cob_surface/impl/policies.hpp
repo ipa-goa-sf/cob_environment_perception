@@ -100,6 +100,16 @@ bool cob_surface::SweepLinePolicy<SurfaceT,Traits>::dataCompare(
 }
 
 template<typename SurfaceT, typename Traits>
+bool cob_surface::SweepLinePolicy<SurfaceT,Traits>::dataCompare(
+  const DataT& a, const DataT& b)
+{
+  if (projSpace(a.sf,a.v1) == projSpace(b.sf,b.v1))
+    return projSpace(a.sf,a.v2)[0] < projSpace(b.sf,b.v2)[0];
+  else
+    return projSpace(a.sf,a.v1)[0] < projSpace(b.sf,b.v1)[0];
+}
+
+template<typename SurfaceT, typename Traits>
 bool cob_surface::SweepLinePolicy<SurfaceT,Traits>::swapCheck(
   const DataT& a, const DataT& b, StateT& state)
 {
@@ -147,6 +157,7 @@ bool cob_surface::MergePolicy<SurfaceT>::createVertex(
   std::vector<PointT> p_map(triangles.size());
   ScalarT min_dist = 100.;
   unsigned int min_idx = 0;
+  VertexHandle vh_new;
 
   for (unsigned int i=0; i<triangles.size(); ++i)
   {
@@ -165,15 +176,16 @@ bool cob_surface::MergePolicy<SurfaceT>::createVertex(
   bool updated;
   if (min_dist < 100.)
   {
-    vh_map = sf_map->add_vertex( .5*(p_map[min_idx] + mapSpace(sf_sensor,vh_sensor)) );
+    vh_new = sf_map->add_vertex( .5*(p_map[min_idx] + mapSpace(sf_sensor,vh_sensor)) );
     updated = true;
   }
   else
   {
-    vh_map = sf_map->add_vertex( mapSpace(sf_sensor,vh_sensor) );
+    vh_new = sf_map->add_vertex( mapSpace(sf_sensor,vh_sensor) );
     updated = false;
   }
-  projSpace(sf_map,vh_map) = projSpace(sf_sensor,vh_sensor);
+  projSpace(sf_map,vh_new) = projSpace(sf_sensor,vh_sensor);
+  vh_map = vh_new;
   return updated;
 }
 
@@ -208,19 +220,19 @@ void cob_surface::MergePolicy<SurfaceT>::createBoundingVertices(
   SurfaceT* sf_map, 
   const VertexHandle& vh_left,
   const VertexHandle& vh_right,
-  const VertexHandle& vh_up,
+  const VertexHandle& vh_down,
   float alpha, VertexHandle& vh_left_bounding, VertexHandle& vh_right_bounding)
 {
   ScalarT xmin = projSpace(sf_map,vh_left)[0];
   ScalarT xmax = projSpace(sf_map,vh_right)[0];
-  ScalarT ymin = projSpace(sf_map,vh_up)[1];
+  ScalarT ymin = projSpace(sf_map,vh_down)[1];
   ScalarT d = alpha*(xmax - xmin);
   vh_left_bounding = sf_map->add_vertex(PointT(0,0,0));
   projSpace(sf_map,vh_left_bounding)[0] = xmin - d;
-  projSpace(sf_map,vh_left_bounding)[1] = ymin;
+  projSpace(sf_map,vh_left_bounding)[1] = ymin - .1;
   vh_right_bounding = sf_map->add_vertex(PointT(0,0,0));
   projSpace(sf_map,vh_right_bounding)[0] = xmax + d;
-  projSpace(sf_map,vh_right_bounding)[1] = ymin;
+  projSpace(sf_map,vh_right_bounding)[1] = ymin - .1;
 }
 
 #endif
